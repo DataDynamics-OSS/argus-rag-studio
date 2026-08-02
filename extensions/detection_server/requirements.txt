@@ -1,0 +1,15 @@
+# Argus 검출 서버 — 독립 실행 의존성
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+pillow>=10.0
+numpy>=1.26
+# PaddleOCR(det+rec) — 한국어 포함 다국어 텍스트 검출/인식
+# 핀 없이 플랫폼별 최신 호환 버전 사용(예: aarch64 는 paddlepaddle 3.x 만 제공).
+# engine.py 가 PaddleOCR 2.x(.ocr)/3.x(.predict) API 를 모두 방어적으로 처리한다.
+paddleocr
+paddlepaddle
+pyyaml>=6.0
+
+# 메트릭(/stats·/metrics) — 시스템 CPU/RAM 수집
+psutil>=5.9

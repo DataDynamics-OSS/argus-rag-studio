@@ -1,0 +1,42 @@
+# Argus RAG Studio - 인프라 부트스트랩 (DB + 오브젝트 스토리지).
+# 기동:  docker compose -f deploy/docker-compose.infra.yml up -d
+# ※ 추론 서비스(임베딩/리랭커/VLM)는 여기서 띄우지 않는다 — 에이전트 설치 후
+#   플랫폼 배포(에이전트 > 서비스/배포)가 표준 경로(deploy/README.md 참조).
+# DDL 적용: psql 로 backend/packaging/config/argus-rag-studio-postgresql.sql 실행
+#   (pgvector 이미지에는 vector 확장이 포함되어 있어 CREATE EXTENSION 이 동작한다)
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: argus-rag-postgres
+    environment:
+      POSTGRES_DB: argus_rag_studio
+      POSTGRES_USER: argus
+      POSTGRES_PASSWORD: argus
+    ports:
+      - "5432:5432"
+    volumes:
+      - rag_pgdata:/var/lib/postgresql/data
+      # 컨테이너 최초 기동 시 DDL 자동 적용
+      - ../backend/packaging/config/argus-rag-studio-postgresql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U argus -d argus_rag_studio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z  # latest 금지 — VERSIONING.md(업스트림 태그 고정)
+    container_name: argus-rag-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - rag_miniodata:/data
+
+volumes:
+  rag_pgdata:
+  rag_miniodata:

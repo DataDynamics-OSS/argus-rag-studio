@@ -1,0 +1,39 @@
+= 임베딩 서버
+
+FastEmbed(ONNX) 기반 *OpenAI 호환* 임베딩 서버(`extensions/embedding_server/`)입니다. RAG 백엔드와 독립
+배포물로, 컬렉션 임베딩 프로바이더를 `OpenAI 호환` 으로 두고 이 서버를 가리키면 됩니다.
+
+== 엔드포인트
+
+[cols="1,3"]
+|===
+| `POST /v1/embeddings` | `{model, input}` → `{data:[{index,embedding}], model, usage}`
+| `GET /v1/models` | 제공 모델 목록(`EMBED_DIM` 차원 필터, 기본 1024)
+| `GET /health` | 헬스체크(무인증)
+|===
+
+== 실행
+
+[source,bash]
+----
+cd extensions/embedding_server
+docker compose up -d --build     # 포트 8080
+# 또는: make run
+----
+
+== 주요 설정(환경변수)
+
+[cols="1,1,3"]
+|===
+| `EMBED_API_KEY` | `changeme` | Bearer 인증. RAG `embedding.api_key` 와 동일해야 함. 빈값이면 무인증.
+| `EMBED_DEFAULT_MODEL` | mxbai-embed-large-v1 | model 미지정 시 사용
+| `EMBED_DIM` | `1024` | 이 차원 모델만 노출(RAG vector(1024) 와 일치). 빈값=전체
+| `EMBED_PRELOAD` | `false` | 시작 시 기본 모델 미리 로딩
+|===
+
+== 연결
+
+지식베이스 생성 시 프로바이더 `OpenAI 호환`, 서버 URL `http://<host>:8080/v1` →
+*테스트* → *모델 불러오기* → *차원 감지*.
+
+자세한 동작 원리·다이어그램은 `extensions/embedding_server/README.md` 참조.

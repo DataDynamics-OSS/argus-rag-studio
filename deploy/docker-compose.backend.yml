@@ -1,0 +1,28 @@
+# Argus 백엔드(API) 컨테이너 실행 — 부트스트랩 전용.
+#
+# 백엔드는 자기 자신을 배포할 수 없다(배포 API 가 백엔드 위에서 돈다) — 이 compose 는
+# 에이전트/플랫폼이 아직 없는 호스트에 백엔드를 세우는 유일한 컨테이너 경로다.
+# 워커는 여기서 띄우지 않는다: 백엔드가 뜨면 에이전트 설치 후 **플랫폼 배포**
+# (에이전트 > 서비스/배포, kind=worker)로 관리형 워커를 배포한다 — compose 워커는
+# 이름 규약 밖이라 서비스 관리에 안 보이고, 이미지에 코드가 박제되는 함정이 있다.
+#
+# 사용:
+#   docker compose -f deploy/docker-compose.backend.yml up -d --build
+#
+# 전제:
+#   - postgres/minio 가 떠 있어야 함(deploy/docker-compose.infra.yml).
+#   - host 네트워크를 써서 백엔드 config(localhost:5432 / localhost:9000 등)를
+#     source 실행과 동일하게 사용한다.
+services:
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: argus-rag-studio-backend:latest
+    container_name: argus-rag-api
+    network_mode: host                          # localhost DB/MinIO + 사내 서버(.48/.47) 그대로 접근
+    environment:
+      ARGUS_RAG_STUDIO_SERVER_CONFIG_DIR: /srv/packaging/config
+      ARGUS_INGESTION_WORKER_ENABLED: "false"   # API 는 in-process 워커를 끈다(파싱 CPU 격리)
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4700"]
+    restart: unless-stopped

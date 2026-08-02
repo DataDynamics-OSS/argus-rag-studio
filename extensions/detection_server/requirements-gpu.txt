@@ -1,0 +1,13 @@
+# Argus 검출 서버(GPU) — EasyOCR(torch) 엔진 의존성
+# torch/torchvision 은 Dockerfile.gpu 가 CUDA(cu128) 인덱스에서 먼저 설치한다(여기 두면 CPU 휠로 덮임).
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+pillow>=10.0
+numpy>=1.26
+pyyaml>=6.0
+easyocr>=1.7
+
+# 메트릭 — 시스템 + GPU(NVML)
+psutil>=5.9
+nvidia-ml-py>=12.0

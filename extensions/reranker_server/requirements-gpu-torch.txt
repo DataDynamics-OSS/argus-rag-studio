@@ -1,0 +1,11 @@
+# Argus 리랭커 서버(GPU, torch 백엔드) — sentence-transformers + torch(CUDA cu128).
+# torch 는 Dockerfile.gpu-torch 가 cu128 인덱스에서 먼저 설치하므로 여기엔 넣지 않는다
+# (aarch64 + Blackwell sm_121 지원. onnxruntime-gpu 가 aarch64 휠이 없어 FastEmbed GPU 불가한 환경의 대안).
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sentence-transformers>=3.0
+pyyaml>=6.0
+
+# 메트릭 — 시스템 + GPU(NVML)
+psutil>=5.9
+nvidia-ml-py>=12.0

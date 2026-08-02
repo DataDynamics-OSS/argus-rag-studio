@@ -1,0 +1,26 @@
+= 인증
+
+로컬 JWT 와 Keycloak OIDC 두 가지 인증을 지원하며, 설정으로 전환합니다.
+
+== 로컬 JWT
+
+* `auth.type=local` (기본).
+* HS256 토큰. 최초 로그인 시 강제 비밀번호 변경 게이트.
+* 기본 계정: `admin` / `admin`.
+
+== Keycloak OIDC
+
+* `auth.type=keycloak`.
+* Keycloak realm/client 설정으로 SSO. 역할 매핑(admin/superuser/user)은 Keycloak 역할로 연결.
+
+[source,properties]
+----
+auth.type=keycloak
+auth.keycloak.server_url=http://localhost:8180
+auth.keycloak.realm=argus
+auth.keycloak.client_id=argus-client
+auth.keycloak.client_secret=...
+auth.keycloak.admin_role=argus-admin
+auth.keycloak.superuser_role=argus-superuser
+auth.keycloak.user_role=argus-user
+----

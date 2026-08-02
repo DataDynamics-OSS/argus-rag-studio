@@ -1,0 +1,38 @@
+# Argus 리랭커 서버(GPU, torch 백엔드) — sentence-transformers CrossEncoder(torch cu128) GPU 배포.
+# 사용: cd reranker_server && docker compose -f docker-compose.gpu-torch.yml up -d --build
+# 요구: 호스트 NVIDIA 드라이버 + nvidia-container-runtime (`--gpus all`).
+#   aarch64 + Blackwell(GB10/sm_121)에서 GPU 동작. onnxruntime-gpu 불가 환경의 대안.
+services:
+  reranker-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu-torch
+    image: argus-rag-studio-reranker-server:latest-gpu-torch
+    container_name: argus-reranker-server
+    ports:
+      - "8081:8081"
+    environment:
+      RERANK_API_KEY: "changeme"
+      RERANK_BACKEND: "sentence_transformers"
+      RERANK_DEVICE: "cuda"
+      RERANK_PRELOAD: "true"
+      RERANK_DEFAULT_MODEL: "BAAI/bge-reranker-v2-m3"   # 다국어(한국어 포함). 경량 영어는 cross-encoder/ms-marco-MiniLM-L-6-v2
+      RERANK_MODELS: "cross-encoder/ms-marco-MiniLM-L-6-v2,BAAI/bge-reranker-v2-m3,jinaai/jina-reranker-v2-base-multilingual"
+      RERANK_MAX_BATCH: "128"
+      RERANK_LOG_DIR: "/var/log/argus-reranker-server"
+      # 레지스트리 하트비트(선택) — LB 뒤 레플리카까지 모니터링. 배포 시 셸/.env 로 주입:
+      #   ARGUS_HEARTBEAT_URL=http://<rag-backend>:4700/api/v1/ext-servers/heartbeat
+      #   ARGUS_INSTANCE_URL=http://<this-host>:8081   (미설정이면 하트비트 비활성)
+      ARGUS_HEARTBEAT_URL: "${ARGUS_HEARTBEAT_URL:-}"
+      ARGUS_INSTANCE_URL: "${ARGUS_INSTANCE_URL:-}"
+      ARGUS_HEARTBEAT_TOKEN: "${ARGUS_HEARTBEAT_TOKEN:-}"
+      ARGUS_HEARTBEAT_INTERVAL: "${ARGUS_HEARTBEAT_INTERVAL:-10}"
+    gpus: all                      # 모든 GPU 노출(docker compose v2.30+)
+    volumes:
+      - rerank-models:/models
+      - rerank-logs:/var/log/argus-reranker-server
+    restart: unless-stopped
+
+volumes:
+  rerank-models:
+  rerank-logs:

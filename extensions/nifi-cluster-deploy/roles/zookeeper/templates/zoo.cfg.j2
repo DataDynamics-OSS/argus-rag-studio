@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+tickTime=2000
+initLimit=10
+syncLimit=5
+dataDir={{ zk_data_dir }}
+clientPort={{ zk_client_port }}
+autopurge.snapRetainCount=5
+autopurge.purgeInterval=24
+4lw.commands.whitelist=srvr,mntr,ruok,stat,conf
+admin.enableServer=false
+
+# 앙상블 멤버 — server.<id>=<host>:<peerPort>:<electionPort>
+{% for host in groups['zookeeper'] %}
+server.{{ hostvars[host].zk_id }}={{ host }}:{{ zk_peer_port }}:{{ zk_election_port }}
+{% endfor %}

@@ -1,0 +1,9 @@
+---
+# 인증서 발급 관련 기본값
+tls_store_type: "JKS"                       # JKS | PKCS12 (키/트러스트 스토어 타입)
+nifi_toolkit_install_dir: "/apps/nifi-toolkit-{{ nifi_toolkit_version }}"
+cert_build_dir: "/apps/nifi-certs"          # cert_authority_host 에서 일괄 생성하는 작업 경로
+cert_local_dir: "{{ playbook_dir }}/.generated-certs"   # 컨트롤러로 가져와 노드에 재분배
+
+# 노드 인증서에 추가로 넣을 SAN(예: VIP/로드밸런서 도메인). 비우면 호스트명만.
+tls_extra_sans: []

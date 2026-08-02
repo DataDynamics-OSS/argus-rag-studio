@@ -1,0 +1,33 @@
+site:
+  title: Argus RAG Studio Documentation
+  start_page: argus-rag-studio::index.adoc
+
+content:
+  sources:
+    - url: ..
+      branches: HEAD
+      start_path: docs
+      edit_url: false
+
+asciidoc:
+  extensions:
+    - asciidoctor-kroki   # [mermaid] 블록을 Kroki 로 SVG 렌더링
+  attributes:
+    source-highlighter: highlight.js
+    icons: font
+    sectnums: ''
+    toc: macro
+    toclevels: 3
+    attribute-missing: skip
+    # 빌드 시 SVG 를 받아 사이트에 임베드(조회 시점 Kroki 의존 없음). 공개 kroki.io 사용.
+    kroki-server-url: https://kroki.io
+    kroki-fetch-diagram: true
+
+ui:
+  bundle:
+    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
+    snapshot: true
+  supplemental_files: ./ui-supplemental
+
+output:
+  dir: ./build/site

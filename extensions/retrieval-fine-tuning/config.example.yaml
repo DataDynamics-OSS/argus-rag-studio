@@ -1,0 +1,10 @@
+# Argus 임베딩 모델 파인튜닝 — 학습 설정 예시
+# CLI 플래그로도 같은 값을 줄 수 있다. (현재 스캐폴드는 CLI 플래그를 우선 사용)
+base_model: intfloat/multilingual-e5-large
+epochs: 3
+batch_size: 32
+lr: 0.00002          # 2e-5
+max_negatives: 1     # 레코드당 하드네거티브 수 (현재 0/1 지원)
+warmup_ratio: 0.1
+device: null         # cuda | cpu | mps | null(자동)
+eval_k: 5            # valid IR 평가 top-k

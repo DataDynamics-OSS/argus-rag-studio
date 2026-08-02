@@ -1,0 +1,115 @@
+= 문서 인제스천
+
+파일을 업로드하면 비동기 워커가 *파싱 → 청킹 → 임베딩 → 색인* 을 수행합니다.
+
+== 흐름
+
+. *업로드* — 지식베이스 상세 화면에서 파일 업로드. 원본은 MinIO/S3 에 적재되고 `rag_documents`(registered) + `rag_ingestion_jobs`(queued) 행이 생성됩니다.
+. *워커* — `FOR UPDATE SKIP LOCKED` 로 잡을 원자적으로 집어 처리(다중 워커 안전).
+. *parse* — 컬렉션의 *파싱 전략*(`parse_strategy`)으로 텍스트(Markdown) 추출.
+. *chunk* — 컬렉션의 청킹 전략/크기/오버랩 적용.
+. *embed* — 컬렉션 임베딩 프로바이더로 배치 임베딩(차원 검증).
+. *index* — `rag_chunks` 에 벡터(pgvector) + tsvector 동시 구축.
+
+진행률(parse→chunk→embed→index)은 잡 상태로 폴링되어 UI 에 표시됩니다.
+
+[#parse-strategy]
+== 파싱 전략(parse_strategy)
+
+파싱은 RAG 품질의 단일 최대 레버입니다 — 여기서 잃은 정보는 임베딩·검색·생성 어디서도
+복구되지 않습니다. 컬렉션별로 문서 형식·품질 요구에 맞게 선택하며, 변경 시 재인덱싱이 필요합니다
+(parse 시점 설정). 임베딩/리랭커처럼 프로바이더 교체형입니다.
+
+[cols="1,1,2,2"]
+|===
+| 전략 | 실행 위치 | 동작 | 의존성 / 비고
+| `auto` (기본 권장) | — | *파일 유형별 자동 선택*: PDF→`layout`, HWP/HWPX→`rhwp`, 그 외→`text` | 의존성 없으면 `text` 폴백. 한 지식베이스에 여러 형식을 섞어도 파일마다 알맞게 처리
+| `text` | 인프로세스 | 평문 텍스트 추출(pypdf/python-docx/html) | 없음. 빠름. *표·다단·스캔본 취약*
+| `layout` | 인프로세스 | PDF 표를 *Markdown 표로 직렬화* + 본문 | `pdfplumber`(기본 포함). 표가 핵심인 문서에 권장
+| `docai` | 인프로세스 | 문서 AI — 레이아웃·표·읽기순서 복원 | `docling`(기본 포함, CPU)
+| `vlm` | *외부 비전 LLM* | 페이지 이미지 → 비전 LLM Markdown | `pymupdf` + *외부 비전 엔드포인트*. 최고 품질·고비용·환각 주의
+| `rhwp` | 인프로세스 | *한글 HWP/HWPX* — Rust 파서로 표(셀 병합) Markdown 보존 | `rhwp_py`(별도 빌드, `backend/native/rhwp_py`). HWP/HWPX 외 `text` 폴백
+|===
+
+NOTE: 한글 HWP/HWPX 는 두 가지 경로(`text` 순수 Python ↔ `rhwp` Rust 파서)로 처리되며 표·각주·
+빌드·한계 등 상세는 xref:kb/hwp.adoc[한글 HWP/HWPX 처리] 페이지를 참조하세요.
+
+[TIP]
+====
+*한 지식베이스에 여러 형식을 섞어도 됩니다.* 지식베이스(컬렉션)에서 *고정되는 것은 임베딩 모델 하나*
+(모든 청크가 같은 벡터 공간이라야 검색됨)이지, *파일 유형이 아닙니다* — 같은 임베딩 모델이 PDF·HWP·TXT
+에서 뽑은 텍스트를 모두 같은 공간에 임베딩합니다.
+
+`parse_strategy=auto` + `chunk_strategy=auto`(기본)면 파싱은 파일 유형으로, 청킹은 내용으로 *파일마다*
+자동 선택됩니다(예: 표가 든 PDF→`layout`+`markdown`, 평문 TXT→`text`+`recursive`). 특정 전략을 모든
+문서에 강제하려면 `auto` 대신 명시 전략을 고르세요.
+====
+
+설치되지 않은 전략은 생성/재인덱싱 화면에서 `(미설치)` 로 표시됩니다(설치 후 자동 활성).
+가용성은 `GET /api/v1/embedding/parse-strategies` 로 조회합니다.
+
+[IMPORTANT]
+====
+*`vlm` 만 외부 서비스가 필요합니다(BYO).* `text`/`layout`/`docai` 는 RAG 백엔드 프로세스
+안에서 직접 실행되지만, `vlm` 은 *비전 가능한 OpenAI 호환 LLM 엔드포인트*를 호출합니다 — 이때
+별도 설정이 아니라 *생성 LLM 설정(`llm.*`)을 그대로 재사용*합니다. 즉 답변 생성 LLM 과 마찬가지로
+운영자가 제공합니다(bring-your-own):
+
+* 이미 멀티모달 LLM(qwen2-vl·gpt-4o·gemini·claude 등)이 있으면 그것을 그대로 사용.
+* 없으면 전용 vLLM 을 기동 — `deploy/docker-compose.infra.yml --profile vision` 에 *선택적* 예시
+  제공(`Qwen/Qwen2-VL-7B-Instruct`, *GPU 필요*). 코어 구성요소가 아닌 opt-in 레시피입니다.
+
+Argus 가 기본 제공하는 추론 서버(임베딩·리랭커)는 경량 ONNX(CPU)라 번들하지만, 비전 LLM 은
+생성형 멀티모달(GPU) 클래스라 생성 LLM 과 동일하게 외부에 둡니다. 게이트웨이가 `X-API-Key` 등
+비표준 인증을 쓰면 xref:../install/config.adoc[`llm.auth_header`/`llm.auth_scheme`] 로 맞춥니다.
+
+[NOTE]
+=====
+*검증 결과* — `vlm` 전략을 실제 비전 LLM(`Qwen2-VL-7B`, NVIDIA GB10/DGX Spark, vLLM)으로
+end-to-end 검증했습니다. 입력 PDF·출력 Markdown·재현 방법은
+link:https://github.com/DataDynamics-OSS/argus-rag-studio/tree/main/samples/vlm[`samples/vlm/`]
+참조 — 제목·헤딩·표가 정확한 Markdown 으로 복원됨을 확인했습니다.
+=====
+====
+
+TIP: 비용 대비 효과가 가장 큰 선택은 표가 있는 PDF에 `layout` 입니다. 같은 표라도
+`text` 는 행·열이 뭉개지지만 `layout` 은 `| 헤더 | ... |` Markdown 표로 보존돼 임베딩·LLM 이
+정확히 이해합니다.
+
+== 문서 메타데이터
+
+본문 추출과 별개로, 인제스천 시 *문서 속성*(제목·작성자·생성/수정일시·앱 등)을 추출해
+`rag_documents.metadata_json` 에 저장합니다(검색 필터·출처 표시·정렬에 활용).
+
+[cols="1,3"]
+|===
+| HWP (v5, OLE) | `FileHeader`(버전·압축 플래그) + `HwpSummaryInformation` 속성셋(제목/작성자/일시)
+| HWPX (OWPML) | `version.xml`(앱·버전) + `content.hpf` OPF 메타(제목/작성자/언어/일시)
+| PDF | `/Title` `/Author` `/CreationDate` 등 + 페이지 수
+| DOCX / XLSX | core properties(제목/작성자/일시) + 시트 수
+|===
+
+best-effort 라 메타데이터 추출이 실패해도 인제스천을 막지 않습니다. 정규화 키:
+`format` `title` `author` `last_saved_by` `created` `modified` `app` `pages`/`sections`.
+
+== 멱등성·재처리
+
+* *중복* — 같은 원본(content_hash)을 다시 올리면 409 로 거른다.
+* *재처리(reindex)* — 문서 단위 재처리는 기존 청크를 삭제 후 재삽입(멱등).
+* *실패* — 잡과 문서가 `failed` 로 표시되고 사유가 기록됨. 재처리로 복구.
+
+== 지원 포맷
+
+* *문서* — pdf · docx · xlsx · pptx (선택 의존성: pypdf · python-docx · openpyxl · python-pptx).
+  xlsx 는 시트를 Markdown 표로, pptx 는 슬라이드별 텍스트·표·발표자 노트를 추출한다.
+* *한글(HWP)* — hwpx · hwp(5.0). 두 가지 추출 경로(순수 Python ↔ rhwp)는
+  xref:kb/hwp.adoc[한글 HWP/HWPX 처리] 참조.
+* *마크업* — html · htm · xml (태그 제거).
+* *텍스트/설정* — txt · md · markdown · csv · tsv · json · log · rst · yaml · yml · toml ·
+  ini · cfg · conf · tex.
+* *소스코드* — py · js · ts · tsx · jsx · java · go · rs · c · cpp · h · cs · rb · php · sh ·
+  sql · kt · swift · scala 등(평문 디코딩).
+
+확장자 추가는 `app/ingestion/loaders.py` 의 `_LOADERS` 레지스트리에 로더를 등록하는 방식이다.
+
+NOTE: 오프라인/에어갭 검증은 임베딩 프로바이더를 `hash` 로 두면 외부 서버 없이 전체 배선을 확인할 수 있습니다(검색 품질은 없음).

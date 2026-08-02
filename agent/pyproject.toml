@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "argus-rag-studio-agent"
+version = "0.1.2"
+description = "Argus RAG Studio Agent - Server management agent with root privileges"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.0",
+    "psutil>=5.9.0",
+    "PyYAML>=6.0",
+    "prometheus-client>=0.20.0",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+    "ruff>=0.3.0",
+]
+
+[project.scripts]
+argus-rag-studio-agent = "app.main:run"
+argus-rag-studio-sysmon = "app.sysmon.cli:main"
+argus-rag-studio-yum = "app.yum.cli:main"
+argus-rag-studio-host = "app.hostmgr.cli:main"
+argus-rag-studio-user = "app.usermgr.cli:main"
+argus-rag-studio-cert = "app.certmgr.cli:main"
+argus-rag-studio-file = "app.filemgr.cli:main"
+argus-rag-studio-process = "app.processmgr.cli:main"
+argus-rag-studio-service = "app.servicemgr.cli:main"
+argus-rag-studio-container = "app.containermgr.cli:main"
+argus-rag-studio-metric = "app.metrics.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/main.py" = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

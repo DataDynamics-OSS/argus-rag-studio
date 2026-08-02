@@ -1,0 +1,19 @@
+[package]
+name = "rhwp_py"
+# RAG Studio 버전(backend/app/__init__.py __version__)과 함께 올린다 — pyproject.toml 도 동일.
+version = "0.1.2"
+edition = "2021"
+license = "MIT"
+description = "PyO3 binding to rhwp for HWP/HWPX text & markdown extraction"
+
+[lib]
+name = "rhwp_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py311"] }
+# rhwp 본체(MIT). crates.io 미게시이므로 git rev 고정(재현성) — rev 는 릴리스 태그의
+# 커밋을 쓴다(태그는 이동 가능, 커밋은 불변). 프론트/렌더 서버의 npm @rhwp/core 버전과
+# 반드시 일치시킬 것(scripts/check-rhwp-version.sh 로 검사).
+# rev 93862a4e = v0.7.18
+rhwp_core = { package = "rhwp", git = "https://github.com/edwardkim/rhwp", rev = "93862a4e16df59834ebce46d91e948cd739208e9" }

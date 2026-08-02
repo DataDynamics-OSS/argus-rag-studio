@@ -1,0 +1,16 @@
+{
+  "name": "argus-hwp-render-server",
+  "version": "0.1.2",
+  "private": true,
+  "description": "HWP/HWPX 페이지 렌더 서비스 — 헤드리스 브라우저에서 @rhwp/core(WASM)로 페이지 이미지/텍스트 추출. LibreOffice 가 못 여는 HWP/HWPX 를 서버사이드로 렌더한다(검색 결과 근거 페이지 보기 등).",
+  "type": "commonjs",
+  "scripts": {
+    "copy-rhwp": "node scripts/copy-rhwp.js",
+    "postinstall": "node scripts/copy-rhwp.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@rhwp/core": "0.7.18",
+    "playwright-core": "^1.40.0"
+  }
+}

@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: argus-rag-studio-agent
+Upstream-Contact: support@data-dynamics.io
+Source: https://github.com/TheOpenCloudEngine/argus-rag-studio-agent
+
+Files: *
+Copyright: 2026 TheOpenCloudEngine
+License: Apache-2.0

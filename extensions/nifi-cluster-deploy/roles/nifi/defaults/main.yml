@@ -1,0 +1,6 @@
+---
+# 스토어 파일명(타입에 따라 확장자 결정) — nifi_certs 와 일관.
+nifi_keystore_file: "keystore.{{ (tls_store_type | default('JKS') == 'PKCS12') | ternary('p12','jks') }}"
+nifi_truststore_file: "truststore.{{ (tls_store_type | default('JKS') == 'PKCS12') | ternary('p12','jks') }}"
+nifi_keystore_type: "{{ tls_store_type | default('JKS') }}"
+nifi_truststore_type: "{{ tls_store_type | default('JKS') }}"

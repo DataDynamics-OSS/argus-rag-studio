@@ -1,0 +1,25 @@
+# Argus 검출 서버 — docker compose 배포
+# 사용: cd detection_server && docker compose up -d --build
+services:
+  detection-server:
+    build: .
+    image: argus-rag-studio-detection-server:latest
+    container_name: argus-detection-server
+    ports:
+      - "8082:8082"
+    environment:
+      # 인증 키 — 기본값 changeme(미설정 시). 운영에선 변경하고 RAG 의 detection 키도 동일하게.
+      DETECT_API_KEY: "changeme"
+      DETECT_LANG: "korean"      # PaddleOCR 언어 코드(korean/en/ch/japan ...)
+      DETECT_USE_GPU: "false"    # GPU 사용 시 true(별도 paddlepaddle-gpu 이미지 필요)
+      DETECT_MIN_SCORE: "0.5"    # 신뢰도 임계값(이 미만 박스 제외)
+      DETECT_PRELOAD: "true"     # 시작 시 기본 언어 모델 미리 로딩
+      DETECT_LOG_DIR: "/var/log/argus-detection-server"
+    volumes:
+      - detect-models:/models                          # 모델 캐시 유지(재시작 시 재다운로드 방지)
+      - detect-logs:/var/log/argus-detection-server    # 로그 영속(docker logs 로도 확인)
+    restart: unless-stopped
+
+volumes:
+  detect-models:
+  detect-logs:

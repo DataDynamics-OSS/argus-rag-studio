@@ -1,0 +1,60 @@
+---
+# 공통 OS 준비: 서비스 계정, 기본 패키지, 커널/리밋 튜닝(NiFi 권장값)
+
+- name: 서비스 그룹 생성
+  ansible.builtin.group:
+    name: "{{ service_group }}"
+    system: true
+
+- name: 서비스 사용자 생성
+  ansible.builtin.user:
+    name: "{{ service_user }}"
+    group: "{{ service_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: 필수 패키지 설치
+  ansible.builtin.package:
+    name:
+      - tar
+      - unzip
+      - curl
+      - ca-certificates
+    state: present
+
+# NiFi 는 동시 파일 핸들/스레드를 많이 쓴다 — 권장 ulimit 적용.
+- name: NiFi ulimit(nofile/nproc) 설정
+  ansible.builtin.copy:
+    dest: /etc/security/limits.d/90-nifi.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {{ service_user }}  soft  nofile  50000
+      {{ service_user }}  hard  nofile  50000
+      {{ service_user }}  soft  nproc   10000
+      {{ service_user }}  hard  nproc   10000
+
+# 운영 권장: vm.swappiness 낮춤, 로컬 포트 범위 상향.
+# (외부 컬렉션 의존을 피하려 sysctl 드롭인 파일로 적용)
+# 공유 호스트에서는 apply_kernel_tuning=false 로 전역 커널 변경을 건너뛸 수 있다.
+- name: 커널 파라미터 드롭인 작성(NiFi 권장)
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/90-nifi.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      vm.swappiness = 0
+      net.ipv4.ip_local_port_range = 10000 65000
+  register: nifi_sysctl
+  when: apply_kernel_tuning | default(true)
+
+- name: 커널 파라미터 reload
+  ansible.builtin.command: sysctl --system
+  when:
+    - apply_kernel_tuning | default(true)
+    - nifi_sysctl is changed
+  changed_when: false
+  failed_when: false

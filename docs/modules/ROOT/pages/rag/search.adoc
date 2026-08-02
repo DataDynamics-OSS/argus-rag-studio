@@ -1,0 +1,34 @@
+= 하이브리드 검색
+
+검색은 세 가지 모드를 지원하며, 컬렉션의 거리 메트릭과 (선택) 리랭킹이 적용됩니다.
+
+== 모드
+
+[cols="1,3"]
+|===
+| `vector` | pgvector ANN — 쿼리 임베딩과 청크 임베딩의 거리(cosine/l2/inner_product) 정렬.
+| `lexical` | PostgreSQL FTS — `tsvector @@ plainto_tsquery` + `ts_rank`(임베딩 불필요).
+| `hybrid` | 벡터 + 렉시컬 결과를 *RRF(Reciprocal Rank Fusion)* 로 융합.
+|===
+
+== RRF 융합
+
+각 순위 리스트에서 `score += 1/(rrf_k + rank)` 를 합산해 재정렬합니다. 벡터와 렉시컬의 장점을 결합해
+의미 검색과 키워드 정확 매칭을 모두 잡습니다.
+
+== 파라미터
+
+[cols="1,3"]
+|===
+| `top_k` | 최종 반환 개수
+| `vector_k` / `lexical_k` | 각 채널의 후보 수
+| `rrf_k` | RRF 상수(기본 60)
+|===
+
+요청에 `pipeline_id` 를 주면 해당 파이프라인 활성 버전의 검색 파라미터·리랭크·생성 설정이 적용됩니다
+(xref:rag/pipelines.adoc[파이프라인]).
+
+== API
+
+`POST /api/v1/collections/{id}/search` — `{query, mode, top_k, rerank, pipeline_id}` →
+`{query, mode, reranked, distance_metric, hits[]}`.

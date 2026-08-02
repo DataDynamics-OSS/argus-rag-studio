@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- {{ ansible_managed }} -->
+<stateManagement>
+    <!-- 노드 로컬 상태(WAL) -->
+    <local-provider>
+        <id>local-provider</id>
+        <class>org.apache.nifi.controller.state.providers.local.WriteAheadLocalStateProvider</class>
+        <property name="Directory">{{ nifi_data_dir }}/state/local</property>
+        <property name="Always Sync">false</property>
+        <property name="Partitions">16</property>
+        <property name="Checkpoint Interval">2 mins</property>
+    </local-provider>
+
+    <!-- 클러스터 공유 상태: 외부 ZooKeeper 앙상블 -->
+    <cluster-provider>
+        <id>zk-provider</id>
+        <class>org.apache.nifi.controller.state.providers.zookeeper.ZooKeeperStateProvider</class>
+        <property name="Connect String">{% for h in groups['zookeeper'] %}{{ h }}:{{ hostvars[h].zk_client_port | default(zk_client_port | default(2181)) }}{% if not loop.last %},{% endif %}{% endfor %}</property>
+        <property name="Root Node">{{ zk_nifi_root_node | default('/nifi') }}</property>
+        <property name="Session Timeout">10 seconds</property>
+        <property name="Access Control">Open</property>
+    </cluster-provider>
+</stateManagement>

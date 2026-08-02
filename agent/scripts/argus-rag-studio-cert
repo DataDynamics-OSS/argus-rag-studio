@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Argus RAG Studio Agent - Certificate Management CLI."""
+
+import sys
+import os
+
+lib_dir = "/opt/argus-rag-studio-agent"
+if os.path.isdir(lib_dir) and lib_dir not in sys.path:
+    sys.path.insert(0, lib_dir)
+
+from app.certmgr.cli import main
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- {{ ansible_managed }} -->
+<!--
+  인가 구성 — 인증 방식에 따라 authorizer 가 달라진다.
+    - single-user: SingleUserAuthorizer. 단일 사용자에게 전체 권한을 자동 부여한다
+      (NiFi 의 정석 단일 사용자 구성). 파일 기반 정책/시드가 필요 없다.
+    - ldap/클러스터: StandardManagedAuthorizer + 파일 기반 정책.
+        · 최초 관리자(Initial Admin Identity): 부트스트랩 전권 사용자.
+        · 노드 신원(Node Identity): 각 노드 서버 인증서 DN(노드 간 프록시 인가용).
+  주의: managed 구성에서 users.xml / authorizations.xml 가 이미 생성된 노드는
+  Initial/Node Identity 변경이 반영되지 않는다(최초 1회만). 변경 시 두 파일을
+  삭제 후 재기동해야 한다.
+-->
+{% if nifi_auth_method == 'single-user' %}
+<authorizers>
+    <authorizer>
+        <identifier>single-user-authorizer</identifier>
+        <class>org.apache.nifi.authorization.single.user.SingleUserAuthorizer</class>
+    </authorizer>
+</authorizers>
+{% else %}
+<authorizers>
+    <userGroupProvider>
+        <identifier>file-user-group-provider</identifier>
+        <class>org.apache.nifi.authorization.FileUserGroupProvider</class>
+        <property name="Users File">./conf/users.xml</property>
+        <property name="Initial User Identity admin">{{ nifi_initial_admin_identity }}</property>
+{% for host in groups['nifi_cluster'] %}
+        <property name="Initial User Identity node-{{ loop.index }}">CN={{ host }}, OU={{ tls_org_unit }}</property>
+{% endfor %}
+    </userGroupProvider>
+
+    <accessPolicyProvider>
+        <identifier>file-access-policy-provider</identifier>
+        <class>org.apache.nifi.authorization.FileAccessPolicyProvider</class>
+        <property name="User Group Provider">file-user-group-provider</property>
+        <property name="Authorizations File">./conf/authorizations.xml</property>
+        <property name="Initial Admin Identity">{{ nifi_initial_admin_identity }}</property>
+        <property name="Legacy Authorized Users File"></property>
+{% for host in groups['nifi_cluster'] %}
+        <property name="Node Identity {{ loop.index }}">CN={{ host }}, OU={{ tls_org_unit }}</property>
+{% endfor %}
+        <property name="Node Group"></property>
+    </accessPolicyProvider>
+
+    <authorizer>
+        <identifier>managed-authorizer</identifier>
+        <class>org.apache.nifi.authorization.StandardManagedAuthorizer</class>
+        <property name="Access Policy Provider">file-access-policy-provider</property>
+    </authorizer>
+</authorizers>
+{% endif %}

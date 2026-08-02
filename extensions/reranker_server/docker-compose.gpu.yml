@@ -1,0 +1,28 @@
+# Argus 리랭커 서버(GPU) — FastEmbed cross-encoder(onnxruntime-gpu) 배포
+# 사용: cd reranker_server && docker compose -f docker-compose.gpu.yml up -d --build
+# 요구: 호스트 NVIDIA 드라이버 + nvidia-container-runtime (`--gpus all`)
+services:
+  reranker-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: argus-rag-studio-reranker-server:latest-gpu
+    container_name: argus-reranker-server
+    ports:
+      - "8081:8081"
+    environment:
+      RERANK_API_KEY: "changeme"
+      RERANK_DEVICE: "cuda"          # GPU(CUDA EP)
+      RERANK_PRELOAD: "true"         # 시작 시 모델 로딩 + 워밋업
+      RERANK_MAX_BATCH: "256"
+      # RERANK_CUDA_DEVICE_IDS: "0"  # 특정 GPU만 쓰려면 인덱스 지정
+      RERANK_LOG_DIR: "/var/log/argus-reranker-server"
+    gpus: all                        # 모든 GPU 노출(docker compose v2.30+). 구버전은 deploy.resources 사용
+    volumes:
+      - rerank-models:/models
+      - rerank-logs:/var/log/argus-reranker-server
+    restart: unless-stopped
+
+volumes:
+  rerank-models:
+  rerank-logs:

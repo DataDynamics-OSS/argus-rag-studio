@@ -1,0 +1,6 @@
+name: argus-rag-studio
+title: Argus RAG Studio
+version: ~
+nav:
+  - modules/ROOT/nav.adoc
+  - modules/dev/nav.adoc

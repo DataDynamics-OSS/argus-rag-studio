@@ -1,0 +1,8 @@
+# Argus 리랭커 서버 — 독립 실행 의존성
+fastapi>=0.110
+uvicorn[standard]>=0.29
+fastembed>=0.4
+pyyaml>=6.0
+
+# 메트릭(/stats·/metrics) — 시스템 CPU/RAM 수집
+psutil>=5.9

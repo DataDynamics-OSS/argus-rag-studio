@@ -1,0 +1,25 @@
+# Argus 임베딩 서버 — docker compose 배포
+# 사용: cd embedding_server && docker compose up -d --build
+services:
+  embedding-server:
+    build: .
+    image: argus-rag-studio-embedding-server:latest
+    container_name: argus-embedding-server
+    ports:
+      - "8080:8080"
+    environment:
+      # 인증 키 — 기본값 changeme(미설정 시). 운영에선 변경하고 RAG 의 임베딩 키도 동일하게.
+      EMBED_API_KEY: "changeme"
+      EMBED_DEFAULT_MODEL: "mixedbread-ai/mxbai-embed-large-v1"
+      EMBED_DIM: "1024"          # 이 RAG 의 vector(1024) 에 맞춰 1024 모델만 노출. 빈값이면 전체
+      EMBED_PRELOAD: "true"      # 시작 시 기본 모델 미리 로딩
+      EMBED_CACHE_DIR: "/models"
+      EMBED_LOG_DIR: "/var/log/argus-embedding-server"
+    volumes:
+      - embed-models:/models                          # 모델 캐시 유지(재시작 시 재다운로드 방지)
+      - embed-logs:/var/log/argus-embedding-server    # 로그 영속(콘솔 로그는 docker logs 로도 확인)
+    restart: unless-stopped
+
+volumes:
+  embed-models:
+  embed-logs:

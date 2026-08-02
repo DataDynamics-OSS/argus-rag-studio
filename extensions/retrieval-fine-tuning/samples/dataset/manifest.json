@@ -1,0 +1,13 @@
+{
+  "dataset_id": "00000000-0000-0000-0000-000000000001",
+  "name": "tax-law-sample-v1",
+  "base_model": "intfloat/multilingual-e5-large",
+  "embedding_dim": 1024,
+  "task": "embedding",
+  "prompt_format": "e5",
+  "split_strategy": "by_document",
+  "mining_model": "intfloat/multilingual-e5-large",
+  "glossary_version": "2026.1",
+  "counts": { "train": 6, "valid": 3 },
+  "created_at": "2026-06-14T00:00:00Z"
+}

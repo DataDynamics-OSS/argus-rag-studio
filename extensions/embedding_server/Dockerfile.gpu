@@ -1,0 +1,38 @@
+# Argus 임베딩 서버(GPU) — FastEmbed(onnxruntime-gpu, CUDA EP) 대량 임베딩용.
+#
+# onnxruntime-gpu 는 CUDA/cuDNN 런타임 라이브러리가 필요하므로 NVIDIA CUDA 베이스 이미지를 쓴다.
+# 호스트에 NVIDIA 드라이버 + nvidia-container-runtime 가 있어야 하며 `--gpus all` 로 실행한다.
+# CUDA 태그는 설치되는 onnxruntime-gpu 의 요구 버전에 맞춰 조정하라(기본 12.4 / cuDNN runtime).
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip libgomp1 \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /srv
+
+# 의존성 먼저(레이어 캐시)
+COPY requirements-gpu.txt ./
+RUN pip install --no-cache-dir -r requirements-gpu.txt
+
+# 앱 코드 — 패키지로 임포트되도록 /srv/embedding_server 에 둔다
+COPY . ./embedding_server
+
+# 설정 디렉터리 + 모델 캐시/로그 경로. device=cuda + 기동 워밋업(preload).
+ENV ARGUS_EMBEDDING_SERVER_CONFIG_DIR=/srv/embedding_server/packaging/config \
+    EMBED_CACHE_DIR=/models \
+    EMBED_LOG_DIR=/var/log/argus-embedding-server \
+    EMBED_HOST=0.0.0.0 \
+    EMBED_PORT=8080 \
+    EMBED_DEVICE=cuda \
+    EMBED_PRELOAD=true
+RUN mkdir -p /models /var/log/argus-embedding-server
+VOLUME ["/models"]
+
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health').status==200 else 1)"
+
+CMD ["python", "-m", "embedding_server"]

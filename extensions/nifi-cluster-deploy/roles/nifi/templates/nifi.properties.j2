@@ -1,0 +1,150 @@
+# {{ ansible_managed }}
+# Apache NiFi {{ nifi_version }} — 보안 클러스터 노드 구성
+# 관리 대상 파일: 수동 편집 금지(Ansible 가 덮어씀).
+
+# Core Properties #
+nifi.flow.configuration.file=./conf/flow.json.gz
+nifi.flow.configuration.archive.enabled=true
+nifi.flow.configuration.archive.dir=./conf/archive/
+nifi.flow.configuration.archive.max.time=30 days
+nifi.flow.configuration.archive.max.storage=500 MB
+nifi.flowcontroller.autoResumeState=true
+nifi.flowcontroller.graceful.shutdown.period=10 sec
+nifi.flowservice.writedelay.interval=500 ms
+nifi.administrative.yield.duration=30 sec
+nifi.bored.yield.duration=10 millis
+nifi.queue.backpressure.count=10000
+nifi.queue.backpressure.size=1 GB
+
+nifi.authorizer.configuration.file=./conf/authorizers.xml
+nifi.login.identity.provider.configuration.file=./conf/login-identity-providers.xml
+nifi.nar.library.directory=./lib
+nifi.nar.library.autoload.directory=./extensions
+nifi.nar.working.directory=./work/nar/
+nifi.documentation.working.directory=./work/docs/components
+
+# State Management #
+nifi.state.management.configuration.file=./conf/state-management.xml
+nifi.state.management.provider.local=local-provider
+nifi.state.management.provider.cluster=zk-provider
+# 외부 ZooKeeper 앙상블을 쓰므로 임베디드 ZK 는 사용하지 않는다.
+nifi.state.management.embedded.zookeeper.start=false
+nifi.state.management.embedded.zookeeper.properties=./conf/zookeeper.properties
+
+# Repositories #
+nifi.database.directory={{ nifi_data_dir }}/database_repository
+nifi.flowfile.repository.implementation=org.apache.nifi.controller.repository.WriteAheadFlowFileRepository
+nifi.flowfile.repository.directory={{ nifi_data_dir }}/flowfile_repository
+nifi.flowfile.repository.checkpoint.interval=20 secs
+nifi.flowfile.repository.always.sync=false
+
+nifi.content.repository.implementation=org.apache.nifi.controller.repository.FileSystemRepository
+nifi.content.repository.directory.default={{ nifi_data_dir }}/content_repository
+nifi.content.repository.archive.max.retention.period=7 days
+nifi.content.repository.archive.max.usage.percentage=50%
+nifi.content.repository.archive.enabled=true
+
+nifi.provenance.repository.implementation=org.apache.nifi.provenance.WriteAheadProvenanceRepository
+nifi.provenance.repository.directory.default={{ nifi_data_dir }}/provenance_repository
+nifi.provenance.repository.max.storage.time=30 days
+nifi.provenance.repository.max.storage.size=10 GB
+nifi.provenance.repository.indexed.fields=EventType, FlowFileUUID, Filename, ProcessorID, Relationship
+
+# Component Status Repository #
+nifi.components.status.repository.implementation=org.apache.nifi.controller.status.history.VolatileComponentStatusRepository
+nifi.components.status.repository.buffer.size=1440
+nifi.components.status.snapshot.frequency=1 min
+
+# ===========================================================================
+# Web Properties — HTTPS 전용(HTTP 비활성), TLS 적용
+# ===========================================================================
+nifi.web.http.host=
+nifi.web.http.port=
+nifi.web.https.host={{ inventory_hostname }}
+nifi.web.https.port={{ nifi_web_https_port }}
+nifi.web.https.network.interface.default=
+nifi.web.jetty.working.directory=./work/jetty
+nifi.web.jetty.threads=200
+nifi.web.max.header.size=16 KB
+# 리버스 프록시/LB 또는 다른 노드에서 오는 Host 헤더 허용 목록
+nifi.web.proxy.context.path=
+nifi.web.proxy.host={{ ([inventory_hostname] + groups['nifi_cluster'] + tls_extra_sans) | unique | join(',') }}
+
+# ===========================================================================
+# Security Properties — 키스토어/트러스트스토어(TLS) + 인가자
+# ===========================================================================
+nifi.sensitive.props.key={{ nifi_sensitive_props_key }}
+nifi.sensitive.props.key.protected=
+nifi.sensitive.props.algorithm=NIFI_PBKDF2_AES_GCM_256
+
+nifi.security.keystore={{ nifi_conf_dir }}/{{ nifi_keystore_file }}
+nifi.security.keystoreType={{ nifi_keystore_type }}
+nifi.security.keystorePasswd={{ tls_keystore_password }}
+nifi.security.keyPasswd={{ tls_keystore_password }}
+nifi.security.truststore={{ nifi_conf_dir }}/{{ nifi_truststore_file }}
+nifi.security.truststoreType={{ nifi_truststore_type }}
+nifi.security.truststorePasswd={{ tls_truststore_password }}
+
+{% if nifi_auth_method == 'single-user' %}
+nifi.security.user.authorizer=single-user-authorizer
+{% else %}
+nifi.security.user.authorizer=managed-authorizer
+{% endif %}
+nifi.security.allow.anonymous.authentication=false
+{% if nifi_auth_method == 'ldap' %}
+nifi.security.user.login.identity.provider=ldap-provider
+{% else %}
+nifi.security.user.login.identity.provider=single-user-provider
+{% endif %}
+nifi.security.user.jws.key.rotation.period=PT1H
+nifi.security.ocsp.responder.url=
+nifi.security.ocsp.responder.certificate=
+
+# ===========================================================================
+# Cluster — 모든 노드 동일 클러스터(노드 간 통신 TLS)
+# ===========================================================================
+nifi.cluster.protocol.is.secure=true
+nifi.cluster.is.node={{ nifi_cluster_is_node | lower }}
+nifi.cluster.node.address={{ inventory_hostname }}
+nifi.cluster.node.protocol.port={{ nifi_cluster_node_protocol_port }}
+nifi.cluster.node.protocol.max.threads=50
+nifi.cluster.node.event.history.size=25
+nifi.cluster.node.connection.timeout=5 sec
+nifi.cluster.node.read.timeout=5 sec
+nifi.cluster.node.max.concurrent.requests=100
+nifi.cluster.firewall.file=
+nifi.cluster.flow.election.max.wait.time={{ nifi_flow_election_max_wait }}
+nifi.cluster.flow.election.max.candidates={{ nifi_flow_election_max_candidates }}
+
+# 클러스터 부하 분산(노드 간 큐 재분배) — TLS
+nifi.cluster.load.balance.host={{ inventory_hostname }}
+nifi.cluster.load.balance.port={{ nifi_cluster_load_balance_port }}
+nifi.cluster.load.balance.connections.per.node=4
+nifi.cluster.load.balance.max.thread.count=8
+nifi.cluster.load.balance.comms.timeout=30 sec
+
+# ZooKeeper — 클러스터 코디네이터/프라이머리 노드 선출 상태 저장
+nifi.zookeeper.connect.string={% for h in groups['zookeeper'] %}{{ h }}:{{ hostvars[h].zk_client_port | default(zk_client_port | default(2181)) }}{% if not loop.last %},{% endif %}{% endfor %}
+
+nifi.zookeeper.connect.timeout=10 secs
+nifi.zookeeper.session.timeout=10 secs
+nifi.zookeeper.root.node={{ zk_nifi_root_node | default('/nifi') }}
+nifi.zookeeper.client.secure=false
+
+# ===========================================================================
+# Site to Site (원격 입력) — TLS
+# ===========================================================================
+nifi.remote.input.host={{ inventory_hostname }}
+nifi.remote.input.secure=true
+nifi.remote.input.socket.port={{ nifi_remote_input_port }}
+nifi.remote.input.http.enabled=true
+nifi.remote.input.http.transaction.ttl=30 sec
+nifi.remote.contents.cache.expiration=30 secs
+
+# JVM / 기타 #
+nifi.h2.url.append=;LOCK_TIMEOUT=25000;WRITE_DELAY=0;AUTO_SERVER=FALSE
+nifi.flowfile.repository.rocksdb.enable.recovery.mode=false
+nifi.diagnostics.on.shutdown.enabled=false
+nifi.analytics.predict.enabled=false
+nifi.runtime.manifest.identifier=
+nifi.performance.tracking.percentage=0

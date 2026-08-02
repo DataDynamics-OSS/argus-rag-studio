@@ -1,0 +1,38 @@
+= 시작하기
+
+== 기동
+
+[source,bash]
+----
+# 1) 인프라 (PostgreSQL+pgvector, MinIO)
+docker compose -f deploy/docker-compose.infra.yml up -d
+
+# (선택) 임베딩·리랭커 서버까지 함께
+docker compose -f deploy/docker-compose.infra.yml --profile inference up -d --build
+
+# 2) 백엔드 (포트 4700)
+cd backend && make dev && make run
+
+# 3) 프론트엔드 (포트 3000)
+cd frontend && pnpm install && pnpm dev
+----
+
+기본 로컬 계정: `admin` / `admin` (최초 로그인 시 비밀번호 변경 필요).
+
+== 첫 지식베이스 만들기
+
+. 사이드바 *지식베이스* → *지식베이스 생성*.
+. *임베딩* — 서버 없이 시작하려면 프로바이더를 `로컬(자체 임베딩)` 로 두면 됩니다. 외부 서버를 쓰려면 `OpenAI 호환` 선택 후 서버 URL 입력 → *테스트* → *모델 불러오기* → *차원 감지*.
+. *청킹* — 전략(recursive 기본)·청크 크기·오버랩.
+. *생성* 후 상세 화면에서 *파일 업로드* → 자동으로 파싱·청킹·임베딩·색인.
+
+== 질의
+
+* *Playground* — 질문 입력 → 검색만 / 답변 생성(인용 포함). 검색 방식(하이브리드/벡터/렉시컬)과 거리 메트릭을 확인.
+* *Chat* — 지식베이스 기반 멀티턴 대화(SSE 스트리밍 + 출처).
+
+== 다음 단계
+
+* xref:kb/embedding-chunking.adoc[임베딩·청킹·거리 메트릭] 으로 검색 품질 튜닝.
+* xref:rag/pipelines.adoc[파이프라인] 으로 설정을 버전 관리하고 실험.
+* xref:eval/evaluation.adoc[평가] 로 골든셋 기반 지표를 측정.

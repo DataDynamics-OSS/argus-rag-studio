@@ -1,0 +1,3 @@
+packaging/systemd/argus-rag-studio-agent.service lib/systemd/system/
+packaging/config/config.yml etc/argus-rag-studio-agent/
+packaging/config/config.properties etc/argus-rag-studio-agent/

@@ -1,0 +1,23 @@
+= 운영 (트레이스·통계)
+
+모든 search/query/chat 호출을 단계별로 계측해 추적·분석·비용 집계에 사용합니다.
+
+== Query Trace
+
+각 호출의 단계별 지연(retrieval / rerank / generation), 검색 청크 수, 토큰 사용량, 거리 메트릭,
+상태/오류, 답변(앞부분)을 `rag_query_traces` 에 기록합니다.
+
+* 계측은 *best-effort* — 별도 세션으로 기록하며 실패해도 요청을 막지 않습니다.
+* `record_trace` 가 `trace_id` 를 반환해 응답·피드백과 연결됩니다.
+
+== 통계
+
+* *지연* — 단계별 p50/p95(`percentile_cont`), 평균.
+* *토큰* — prompt/completion 합계(임베딩·LLM).
+* *성공률* — ok / error.
+* *인기 질의* — 상위 질의.
+
+== 화면
+
+운영 화면에서 통계 카드 + 단계별 지연 + 인기 질의 + 트레이스 목록/상세를 확인합니다.
+트레이스 상세에는 mode·거리 메트릭·rerank·토큰·답변이 포함됩니다.

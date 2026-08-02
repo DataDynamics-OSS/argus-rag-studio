@@ -1,0 +1,15 @@
+# Argus HWP 렌더 서비스 — docker compose 배포.
+# 사용: cd hwp_render_server && docker compose up -d --build
+services:
+  hwp-render-server:
+    build: .
+    image: argus-rag-studio-hwp-render-server:latest
+    container_name: argus-hwp-render-server
+    ports:
+      - "8085:8085"
+    environment:
+      HWP_RENDER_PORT: "8085"
+      CHROMIUM_PATH: "/usr/bin/chromium"
+    restart: unless-stopped
+    # 헤드리스 chromium 은 /dev/shm 을 많이 쓴다(--disable-dev-shm-usage 로 완화하지만 여유 권장).
+    shm_size: "512m"

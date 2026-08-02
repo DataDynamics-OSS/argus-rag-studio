@@ -1,0 +1,29 @@
+# Argus 임베딩 서버(GPU) — FastEmbed(onnxruntime-gpu) 대량 임베딩 배포
+# 사용: cd embedding_server && docker compose -f docker-compose.gpu.yml up -d --build
+# 요구: 호스트 NVIDIA 드라이버 + nvidia-container-runtime (`--gpus all`)
+services:
+  embedding-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: argus-rag-studio-embedding-server:latest-gpu
+    container_name: argus-embedding-server
+    ports:
+      - "8080:8080"
+    environment:
+      EMBED_API_KEY: "changeme"
+      EMBED_DEVICE: "cuda"           # GPU(CUDA EP)
+      EMBED_PRELOAD: "true"          # 시작 시 모델 로딩 + 워밋업
+      EMBED_MAX_BATCH: "256"         # GPU 활용 위해 크게(요청 측 batch_size 와 별개)
+      # EMBED_DEFAULT_MODEL: "bge-m3"  # 최종 운영 모델로 고정 권장
+      # EMBED_CUDA_DEVICE_IDS: "0"     # 특정 GPU만 쓰려면 인덱스 지정
+      EMBED_LOG_DIR: "/var/log/argus-embedding-server"
+    gpus: all                        # 모든 GPU 노출(docker compose v2.30+). 구버전은 deploy.resources 사용
+    volumes:
+      - embed-models:/models                            # HF 모델 캐시 유지
+      - embed-logs:/var/log/argus-embedding-server
+    restart: unless-stopped
+
+volumes:
+  embed-models:
+  embed-logs:

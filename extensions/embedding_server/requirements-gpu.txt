@@ -1,0 +1,10 @@
+# Argus 임베딩 서버(GPU) — onnxruntime-gpu(CUDA EP)로 대량 임베딩 가속.
+# fastembed-gpu 가 onnxruntime-gpu 를 끌어온다. CUDA/cuDNN 런타임은 이미지(Dockerfile.gpu)가 제공.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+fastembed-gpu>=0.4
+pyyaml>=6.0
+
+# 메트릭 — 시스템 + GPU(NVML)
+psutil>=5.9
+nvidia-ml-py>=12.0

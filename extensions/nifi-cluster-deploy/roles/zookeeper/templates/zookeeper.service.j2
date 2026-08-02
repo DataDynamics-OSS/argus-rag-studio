@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Apache ZooKeeper ({{ zookeeper_version }})
+After=network.target
+
+[Service]
+Type=forking
+User={{ service_user }}
+Group={{ service_group }}
+Environment=JAVA_HOME={{ detected_java_home }}
+Environment=ZOO_LOG_DIR={{ zk_log_dir }}
+ExecStart={{ zk_base_dir }}/bin/zkServer.sh start {{ zk_base_dir }}/conf/zoo.cfg
+ExecStop={{ zk_base_dir }}/bin/zkServer.sh stop {{ zk_base_dir }}/conf/zoo.cfg
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=50000
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,4 @@
+node_modules/
+# @rhwp/core 에서 복사되는 자산(빌드 시 scripts/copy-rhwp.js 가 생성)
+static/rhwp.js
+static/rhwp_bg.wasm

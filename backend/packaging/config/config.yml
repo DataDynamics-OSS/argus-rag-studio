@@ -1,0 +1,220 @@
+app:
+  name: argus-rag-studio-server
+  debug: ${app.debug:false}
+
+server:
+  host: ${server.host:0.0.0.0}
+  port: ${server.port:4700}
+
+logging:
+  level: ${log.level:INFO}
+  dir: ${log.dir:/var/log/argus-rag-studio-server}
+  filename: ${log.filename:argus-rag-studio-server.log}
+  rolling:
+    type: daily
+    backup_count: 30
+
+data:
+  dir: ${data.dir:/var/lib/argus-rag-studio-server}
+
+cors:
+  origins: ${cors.origins:*}
+
+# 인증 — 로컬 JWT(local) 또는 Keycloak OIDC(keycloak)
+auth:
+  type: ${auth.type:local}
+  keycloak:
+    server_url: ${auth.keycloak.server_url:http://localhost:8180}
+    realm: ${auth.keycloak.realm:argus}
+    client_id: ${auth.keycloak.client_id:argus-client}
+    client_secret: ${auth.keycloak.client_secret:argus-client-secret}
+    admin_role: ${auth.keycloak.admin_role:argus-admin}
+    superuser_role: ${auth.keycloak.superuser_role:argus-superuser}
+    user_role: ${auth.keycloak.user_role:argus-user}
+  # 로컬(내장 JWT) 토큰 만료(분). 기본 480(8시간)
+  local_jwt_expire_minutes: ${auth.local_jwt_expire_minutes:480}
+
+database:
+  type: ${db.type:postgresql}
+  host: ${db.host:localhost}
+  port: ${db.port:5432}
+  name: ${db.name:argus_rag_studio}
+  username: ${db.username:argus}
+  password: ${db.password:argus}
+  pool:
+    size: ${db.pool.size:5}
+    max_overflow: ${db.pool.max_overflow:10}
+    recycle: ${db.pool.recycle:3600}
+  echo: ${db.echo:false}
+
+# 기반 환경(Platform Profile) — standard | databricks
+#   databricks 선택 시 임베딩/LLM/벡터스토어/스토리지의 기본값·동작이 Databricks 규약에 맞춰진다.
+platform:
+  base: ${platform.base:standard}
+
+# Databricks workspace (기반 환경=databricks 일 때). PAT 토큰 인증.
+databricks:
+  host: ${databricks.host:}
+  token: ${databricks.token:}
+
+# 임베딩 — 컬렉션 기본값 + 프로바이더(M2 인제스천에서 청크 임베딩에 사용)
+embedding:
+  default_model: ${embedding.default_model:bge-m3}
+  default_dim: ${embedding.default_dim:1024}
+  default_metric: ${embedding.default_metric:cosine}
+  # provider: openai_compatible(TEI/Ollama-proxy/vLLM/OpenAI) | hash(오프라인 더미)
+  provider: ${embedding.provider:openai_compatible}
+  server_url: ${embedding.server_url:http://localhost:8080/v1}
+  # Argus 임베딩 서버 기본 키와 일치(둘 다 미설정 시 바로 동작). 운영 시 변경, 무인증이면 빈값
+  api_key: ${embedding.api_key:changeme}
+  model: ${embedding.model:bge-m3}
+  # 쿼리 instruction(선택) — instruction-aware 모델(Qwen3-Embedding 등)에서 쿼리에만 붙는 지시문.
+  # 빈값이면 기반 환경 프로파일 기본값을 따른다(standard=없음, databricks=Qwen 기본 지시문).
+  query_instruction: ${embedding.query_instruction:}
+  batch_size: ${embedding.batch_size:32}
+  timeout: ${embedding.timeout:60}
+  # 인증 헤더 커스터마이즈 — 기본 'Authorization: Bearer <key>'.
+  # X-API-Key 게이트웨이 예: auth_header=X-API-Key, auth_scheme=(빈값)
+  auth_header: ${embedding.auth_header:Authorization}
+  auth_scheme: ${embedding.auth_scheme:Bearer}
+
+# 인제스천(M2) — 청킹 + 비동기 워커 + NiFi register 서비스 토큰
+ingestion:
+  chunk_size: ${ingestion.chunk_size:1000}
+  chunk_overlap: ${ingestion.chunk_overlap:150}
+  local_worker_enabled: ${ingestion.local_worker_enabled:true}
+  worker_interval: ${ingestion.worker_interval:2.0}
+  service_token: ${ingestion.service_token:}
+  # 청킹 품질 — 대용량 KSS 폴백 임계(자) / 최소 청크 비율 / 시맨틱 경계 백분위
+  max_kss_chars: ${ingestion.max_kss_chars:5000}
+  min_chunk_ratio: ${ingestion.min_chunk_ratio:0.1}
+  semantic_percentile: ${ingestion.semantic_percentile:90}
+
+# 검색(M3) — 하이브리드 retrieval 파라미터
+retrieval:
+  top_k: ${retrieval.top_k:5}
+  vector_k: ${retrieval.vector_k:20}
+  lexical_k: ${retrieval.lexical_k:20}
+  rrf_k: ${retrieval.rrf_k:60}
+  # 벡터 저장/검색 백엔드 — pgvector(기본) | qdrant | weaviate | milvus | databricks
+  vector_store: ${retrieval.vector_store:pgvector}
+  vector_store_url: ${retrieval.vector_store_url:}
+  vector_store_api_key: ${retrieval.vector_store_api_key:}
+  vector_store_collection_prefix: ${retrieval.vector_store_collection_prefix:argus}
+  # Databricks Mosaic AI Vector Search 전용(인증은 databricks.host/token 재사용).
+  #   endpoint: Vector Search 엔드포인트(컴퓨트) 이름. 인덱스 위치: {catalog}.{schema}.{prefix}_c{id}
+  vector_store_databricks_endpoint: ${retrieval.vector_store_databricks_endpoint:}
+  vector_store_databricks_catalog: ${retrieval.vector_store_databricks_catalog:main}
+  vector_store_databricks_schema: ${retrieval.vector_store_databricks_schema:argus}
+
+# 생성 LLM(M3) — provider: openai_compatible(/chat/completions) | anthropic(Claude SDK)
+llm:
+  provider: ${llm.provider:openai_compatible}
+  server_url: ${llm.server_url:http://localhost:8080/v1}
+  api_key: ${llm.api_key:}
+  model: ${llm.model:}
+  max_tokens: ${llm.max_tokens:2048}
+  temperature: ${llm.temperature:0.2}
+  timeout: ${llm.timeout:120}
+  # 인증 헤더 커스터마이즈(openai_compatible) — 기본 'Authorization: Bearer'.
+  # X-API-Key 게이트웨이 예: auth_header=X-API-Key, auth_scheme=(빈값)
+  auth_header: ${llm.auth_header:Authorization}
+  auth_scheme: ${llm.auth_scheme:Bearer}
+
+# 리랭킹(M3) — provider: none | llm | cross_encoder
+rerank:
+  provider: ${rerank.provider:none}
+  server_url: ${rerank.server_url:http://localhost:8081/rerank}
+  # Argus 리랭커 서버 기본 키와 일치(둘 다 미설정 시 바로 동작). 무인증이면 빈값
+  api_key: ${rerank.api_key:changeme}
+  top_n: ${rerank.top_n:5}
+  # 인증 헤더 커스터마이즈 — 기본 'Authorization: Bearer'.
+  auth_header: ${rerank.auth_header:Authorization}
+  auth_scheme: ${rerank.auth_scheme:Bearer}
+
+# 어노테이션 자동 bbox 인식 — 외부 검출 서버(PaddleOCR, extensions/detection_server/)
+detection:
+  # true 면 편집기 '자동 인식' 활성화. false 면 503 안내
+  enabled: ${detection.enabled:false}
+  server_url: ${detection.server_url:http://localhost:8082}
+  # Argus 검출 서버 기본 키와 일치(둘 다 미설정 시 바로 동작). 무인증이면 빈값
+  api_key: ${detection.api_key:changeme}
+  auth_header: ${detection.auth_header:Authorization}
+  auth_scheme: ${detection.auth_scheme:Bearer}
+  # 기본 PaddleOCR 언어 / 신뢰도 임계값 / 호출 타임아웃(초)
+  lang: ${detection.lang:korean}
+  min_score: ${detection.min_score:0.5}
+  timeout: ${detection.timeout:60}
+
+# Object Storage (MinIO / S3) — 원본 문서/아티팩트 저장소
+object_storage:
+  # 스토리지 백엔드 — s3(기본, MinIO/S3) | uc_volumes(Databricks Unity Catalog Volumes)
+  #   uc_volumes 인증은 databricks.host/token 재사용. 위치: /Volumes/{catalog}/{schema}/{volume}
+  backend: ${object_storage.backend:s3}
+  databricks_catalog: ${object_storage.databricks_catalog:main}
+  databricks_schema: ${object_storage.databricks_schema:argus}
+  databricks_volume: ${object_storage.databricks_volume:documents}
+  endpoint: ${os.endpoint:http://localhost:9000}
+  access_key: ${os.access_key:minioadmin}
+  secret_key: ${os.secret_key:minioadmin}
+  region: ${os.region:us-east-1}
+  use_ssl: ${os.use_ssl:false}
+  bucket: ${os.bucket:rag-documents}
+  annotation_bucket: ${os.annotation_bucket:annotation-images}
+  classification_bucket: ${os.classification_bucket:classification-images}
+  models_bucket: ${os.models_bucket:argus-models}  # 에어갭 모델 팩 저장소(Model Repository)
+  # presigned 다운로드 URL 만료(초)
+  presign_expiry: ${os.presign_expiry:3600}
+
+# 어노테이션 문서→이미지 변환
+image_conversion:
+  # HWP/HWPX 변환 엔진: rhwp(클라이언트 WASM) | libreoffice(서버)
+  hwp_engine: ${image_conversion.hwp_engine:rhwp}
+  dpi: ${image_conversion.dpi:150}
+  thumbnail_max: ${image_conversion.thumbnail_max:320}
+  hwp_scale: ${image_conversion.hwp_scale:2.0}
+  office_concurrency: ${image_conversion.office_concurrency:2}
+  office_timeout: ${image_conversion.office_timeout:90}
+
+# 이미지 분류 — 문서 내 이미지(도표/차트/사진 등)를 비전 LLM(VLM)으로 식별
+# enabled=true 면 인제스천 시 문서에서 이미지를 추출해 분류 결과를 문서 메타데이터에 저장.
+# server_url/model 이 비어 있으면 생성 LLM(llm.*) 설정을 그대로 재사용한다
+# (전용 vLLM Qwen2.5-VL 엔드포인트를 가리키려면 아래 값을 채운다).
+image_classification:
+  enabled: ${image_classification.enabled:false}
+  server_url: ${image_classification.server_url:}
+  model: ${image_classification.model:}
+  api_key: ${image_classification.api_key:}
+  auth_header: ${image_classification.auth_header:Authorization}
+  auth_scheme: ${image_classification.auth_scheme:Bearer}
+  categories: ${image_classification.categories:chart,table,diagram,photo,screenshot,formula,logo,other}
+  min_pixels: ${image_classification.min_pixels:64}
+  max_images: ${image_classification.max_images:50}
+  timeout: ${image_classification.timeout:60}
+  # 심층 내용 분석(상세 설명·OCR·표/수식 구조화). 끄면 유형+한 줄 요약만(저비용)
+  content_analysis: ${image_classification.content_analysis:true}
+  max_tokens: ${image_classification.max_tokens:768}
+  # URL 가져오기에서 '작은 이미지 제거' 시 버릴 최소 파일 크기(KB)
+  small_image_min_kb: ${image_classification.small_image_min_kb:10}
+
+# 미리보기(S3 브라우저) — parquet/xlsx 최대 행수
+preview:
+  max_rows: ${preview.max_rows:1000}
+
+# 관측성 — 질의 트레이스 답변 저장 최대 길이(자)
+observability:
+  answer_limit: ${observability.answer_limit:2000}
+
+# HWP/HWPX 페이지 렌더 서비스(헤드리스 @rhwp/core) — 검색 근거 페이지 보기. 빈값이면 비활성.
+hwp_render:
+  url: ${hwp_render.url:}
+
+# 에이전트(Argus RAG Studio Agent) 하트비트 끊김 감시
+agent:
+  heartbeat_check_interval: ${agent.heartbeat_check_interval:30}
+  heartbeat_disconnect_timeout: ${agent.heartbeat_disconnect_timeout:120}
+
+# 에이전트 Docker 배포 — 이미지 레지스트리/태그 기본값
+deploy:
+  image_registry: ${deploy.image_registry:}
+  image_tag: ${deploy.image_tag:latest}

@@ -1,0 +1,57 @@
+= 아키텍처
+
+Argus RAG Studio 는 RAG 백엔드(:4700)를 중심으로, 선택적 추론 서버(임베딩 :8080, 리랭커 :8081)와
+PostgreSQL+pgvector, 오브젝트 스토리지로 구성됩니다.
+
+== 전체 구성
+
+[mermaid]
+....
+flowchart LR
+  UI["Next.js UI :3000"] --> API["RAG 백엔드 :4700<br/>(FastAPI)"]
+  API --> PG[("PostgreSQL 16<br/>+ pgvector")]
+  API --> OBJ[("오브젝트 스토리지<br/>MinIO/S3")]
+  API -->|"openai_compatible"| EMB["임베딩 서버 :8080<br/>FastEmbed"]
+  API -->|"cross_encoder"| RR["리랭커 서버 :8081<br/>FastEmbed CE"]
+  API -->|"생성"| LLM["LLM 서버<br/>OpenAI 호환 / Claude"]
+....
+
+임베딩 `local`/`hash`, 리랭커 `local` 을 쓰면 외부 추론 서버 없이 백엔드 인프로세스로 동작합니다.
+
+== 인제스천(색인) 흐름
+
+[mermaid]
+....
+flowchart TD
+  U["문서 업로드"] --> S["오브젝트 스토리지 저장"]
+  S --> W["인제스천 워커"]
+  W --> C["청킹(chunk_size/overlap)"]
+  C --> E["임베딩(provider별)"]
+  E --> V["pgvector vector(1024) + tsvector 저장"]
+....
+
+== 검색·생성 흐름
+
+[mermaid]
+....
+flowchart TD
+  Q["질의"] --> QE["질의 임베딩"]
+  QE --> VEC["벡터 검색<br/>(distance_metric → 연산자)"]
+  Q --> LEX["렉시컬 검색(tsvector)"]
+  VEC --> RRF["RRF 융합"]
+  LEX --> RRF
+  RRF --> RANK["리랭킹(선택)"]
+  RANK --> GEN["LLM 생성(컨텍스트 주입)"]
+  GEN --> A["답변 + 출처 + 검색 메타데이터"]
+....
+
+거리 메트릭과 pgvector 연산자 매핑:
+
+[cols="1,1,2"]
+|===
+| cosine | `<=>` | score = 1 − dist
+| l2 | `<->` | score = 1 / (1 + dist)
+| inner_product | `<#>` | score = − dist
+|===
+
+각 단계의 더 자세한 다이어그램은 리포 루트의 `README.md` 아키텍처 절을 참고하세요.

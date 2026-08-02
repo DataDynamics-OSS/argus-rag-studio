@@ -1,0 +1,74 @@
+// 사용 여정(사용 순서) 중심 구성 — 위에서 아래로 따라가면 구축→활용→개선→운영 순서가 된다.
+* xref:index.adoc[개요]
+* xref:journey.adoc[사용 여정 한눈에 보기]
+
+* 1부 — 시작하기
+** xref:getting-started.adoc[퀵스타트]
+
+* 2부 — 설치·구축 (관리자)
+** xref:install/requirements.adoc[시스템 요구사항]
+** xref:install/docker.adoc[Docker Compose 배포]
+** xref:install/config.adoc[설정 레퍼런스]
+** xref:servers/embedding-server.adoc[임베딩 서버]
+** xref:servers/reranker-server.adoc[리랭커 서버]
+
+* 3부 — 모델·서비스 준비 (관리자)
+** xref:infra/agents.adoc[에이전트·서버 관리]
+** xref:infra/model-registry.adoc[모델 레지스트리]
+** xref:infra/service-deploy.adoc[서비스 배포]
+** xref:infra/service-endpoints.adoc[전역 설정과 서비스 연결]
+
+* 4부 — 지식베이스 구축
+** xref:kb/collections.adoc[지식베이스 생성]
+** xref:kb/embedding-chunking.adoc[임베딩·청킹·거리 메트릭]
+** xref:kb/chunking.adoc[청킹 처리 가이드]
+** xref:kb/reranking.adoc[리랭킹]
+** xref:kb/ingestion.adoc[문서 인제스천]
+** xref:kb/ingestion-pipeline.adoc[인제스천 보강 파이프라인]
+** xref:kb/hwp.adoc[한글 HWP/HWPX 처리]
+** xref:kb/reindex.adoc[설정 변경·재인덱싱]
+
+* 5부 — 문서 자동 배분(라우팅)
+** xref:routing/overview.adoc[라우팅 개요]
+** xref:routing/storage-sources.adoc[스토리지 소스 등록]
+** xref:routing/policy.adoc[라우팅 정책 구성]
+** xref:routing/intake.adoc[인테이크(단건·폴더 일괄)]
+** xref:routing/source-watch.adoc[소스 워치(주기 스캔)]
+** xref:routing/review-queue.adoc[검토 대기·규칙 제안]
+
+* 6부 — 검색·생성 활용
+** xref:rag/playground.adoc[Playground]
+** xref:rag/search.adoc[하이브리드 검색]
+** xref:rag/chat.adoc[Chat]
+** xref:rag/pipelines.adoc[파이프라인 버전 관리]
+
+* 7부 — 평가·품질 개선
+** xref:eval/evaluation.adoc[평가(골든셋·Run·지표)]
+** xref:eval/feedback.adoc[피드백 루프]
+** xref:eval/observability.adoc[운영(트레이스·통계)]
+
+* 8부 — 파인 튜닝
+** xref:finetune/overview.adoc[파인 튜닝 개요]
+** xref:finetune/glossary.adoc[용어 사전]
+** xref:finetune/text-labeling.adoc[텍스트 라벨링]
+** xref:finetune/image-labeling.adoc[이미지 라벨링]
+** xref:finetune/image-extraction.adoc[이미지 추출 및 분석]
+** xref:finetune/datasets.adoc[학습 데이터셋]
+** xref:finetune/training.adoc[학습 작업]
+** xref:finetune/models.adoc[학습 모델 등록·배포]
+
+* 9부 — 운영 관리
+** xref:ops/users.adoc[사용자·권한]
+** xref:ops/permissions.adoc[메뉴 및 기능 권한]
+** xref:ops/authentication.adoc[인증]
+** xref:ops/api-keys.adoc[API 키 (외부 연동)]
+** xref:ops/pii-rules.adoc[PII 규칙]
+** xref:ops/s3-storage.adoc[S3 스토리지 브라우저]
+** xref:ops/jobs.adoc[잡 모니터링]
+** xref:ops/settings.adoc[설정]
+** xref:ops/databricks.adoc[Databricks 기반 환경]
+
+* 부록
+** xref:appendix/api.adoc[REST API]
+** xref:appendix/architecture.adoc[아키텍처]
+** xref:appendix/troubleshooting.adoc[문제 해결]

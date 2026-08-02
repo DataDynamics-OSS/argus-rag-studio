@@ -1,0 +1,43 @@
+# Argus RAG Studio — MinIO (S3 호환 오브젝트 스토리지) 에어갭 배포
+# 사용: cd extensions/minio && docker compose up -d
+#
+# 라이선스: MinIO 커뮤니티 = AGPL-3.0 (내부/에어갭 운영은 무료, 라이선스 비용 없음).
+#   재현성·풀콘솔 확보를 위해 :latest 대신 RELEASE 태그를 고정한다. (MINIO_IMAGE 로 override)
+#   풀 웹 콘솔은 2025-05 콘솔 축소 이전 RELEASE 를 권장.
+services:
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
+    container_name: argus-rag-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"        # S3 API
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"    # 웹 콘솔
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+  # 최초 1회: RAG Studio 가 쓰는 버킷 생성(멱등). 완료 후 종료.
+  createbuckets:
+    image: ${MC_IMAGE:-minio/mc:RELEASE.2025-04-16T18-13-26Z}
+    container_name: argus-rag-minio-init
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin}; do
+        echo 'MinIO 대기...'; sleep 2;
+      done;
+      mc mb -p local/rag-documents local/annotation-images local/classification-images;
+      mc ls local;
+      echo '버킷 생성 완료'; exit 0;
+      "
+    restart: "no"
+
+volumes:
+  minio-data:

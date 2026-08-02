@@ -1,0 +1,190 @@
+{
+  "groups": [
+    {
+      "id": "main",
+      "label": "RAG",
+      "items": [
+        {
+          "id": "dashboard",
+          "title": "대시보드",
+          "url": "/dashboard",
+          "icon": "LayoutDashboard"
+        },
+        {
+          "id": "overview",
+          "title": "RAG 개요",
+          "url": "/dashboard/overview",
+          "icon": "BookOpen"
+        },
+        {
+          "id": "collections",
+          "title": "지식베이스",
+          "url": "/dashboard/collections",
+          "icon": "Database"
+        },
+        {
+          "id": "playground",
+          "title": "Playground",
+          "url": "/dashboard/playground",
+          "icon": "FlaskConical"
+        },
+        {
+          "id": "chat",
+          "title": "Chat",
+          "url": "/dashboard/chat",
+          "icon": "MessagesSquare"
+        },
+        {
+          "id": "pipelines",
+          "title": "파이프라인",
+          "url": "/dashboard/pipelines",
+          "icon": "GitBranch"
+        },
+        {
+          "id": "evaluation",
+          "title": "평가",
+          "url": "/dashboard/evaluation",
+          "icon": "ClipboardCheck"
+        },
+        {
+          "id": "feedback",
+          "title": "피드백",
+          "url": "/dashboard/feedback",
+          "icon": "ThumbsUp"
+        },
+        {
+          "id": "jobs",
+          "title": "잡 모니터링",
+          "url": "/dashboard/jobs",
+          "icon": "Boxes"
+        },
+        {
+          "id": "observability",
+          "title": "운영",
+          "url": "/dashboard/observability",
+          "icon": "Activity"
+        }
+      ]
+    },
+    {
+      "id": "finetuning",
+      "label": "파인 튜닝",
+      "items": [
+        {
+          "id": "finetuning-overview",
+          "title": "파인 튜닝 개요",
+          "url": "/dashboard/fine-tuning/overview",
+          "icon": "GraduationCap"
+        },
+        {
+          "id": "finetuning-glossary",
+          "title": "용어 사전",
+          "url": "/dashboard/fine-tuning/glossary",
+          "icon": "Tags"
+        },
+        {
+          "id": "finetuning-labeling",
+          "title": "텍스트 라벨링",
+          "url": "/dashboard/fine-tuning/labeling",
+          "icon": "ClipboardCheck"
+        },
+        {
+          "id": "annotations-explorer",
+          "title": "이미지 라벨링",
+          "url": "/dashboard/annotations/explorer",
+          "icon": "FolderTree"
+        },
+        {
+          "id": "image-recognition",
+          "title": "이미지 추출 및 분석",
+          "url": "/dashboard/annotations/recognition",
+          "icon": "ScanSearch"
+        },
+        {
+          "id": "finetuning-datasets",
+          "title": "학습 데이터셋",
+          "url": "/dashboard/fine-tuning/datasets",
+          "icon": "Boxes"
+        },
+        {
+          "id": "finetuning-jobs",
+          "title": "학습 작업",
+          "url": "/dashboard/fine-tuning/jobs",
+          "icon": "Cpu"
+        },
+        {
+          "id": "finetuning-models",
+          "title": "모델",
+          "url": "/dashboard/fine-tuning/models",
+          "icon": "Server"
+        }
+      ]
+    },
+    {
+      "id": "admin",
+      "label": "관리",
+      "items": [
+        {
+          "id": "users",
+          "title": "사용자",
+          "url": "/dashboard/users",
+          "icon": "Users"
+        },
+        {
+          "id": "server-management",
+          "title": "에이전트",
+          "url": "/dashboard/server-management",
+          "icon": "Server"
+        },
+        {
+          "id": "s3-storage",
+          "title": "S3 스토리지",
+          "url": "/dashboard/s3-storage",
+          "icon": "FolderOpen"
+        },
+        {
+          "id": "storage-sources",
+          "title": "스토리지 소스",
+          "url": "/dashboard/storage-sources",
+          "icon": "HardDrive"
+        },
+        {
+          "id": "models",
+          "title": "모델",
+          "url": "/dashboard/models",
+          "icon": "Boxes"
+        },
+        {
+          "id": "permissions",
+          "title": "메뉴 및 기능 권한",
+          "url": "/dashboard/permissions",
+          "icon": "ShieldCheck"
+        },
+        {
+          "id": "pii-rules",
+          "title": "PII Rule",
+          "url": "/dashboard/pii-rules",
+          "icon": "ShieldAlert"
+        },
+        {
+          "id": "routing",
+          "title": "RAG 문서 라우팅",
+          "url": "/dashboard/routing",
+          "icon": "Network"
+        },
+        {
+          "id": "api-keys",
+          "title": "API 키",
+          "url": "/dashboard/api-keys",
+          "icon": "KeyRound"
+        },
+        {
+          "id": "settings",
+          "title": "설정",
+          "url": "/dashboard/settings",
+          "icon": "Settings"
+        }
+      ]
+    }
+  ]
+}

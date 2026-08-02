@@ -1,0 +1,34 @@
+= 리랭킹
+
+리랭킹은 1차 검색으로 추린 후보(top-N)를 query 와의 관련도로 다시 정렬해 정확도를 높입니다.
+임베딩(bi-encoder)과 달리 cross-encoder 는 (query, document) 쌍을 함께 보고 점수를 냅니다.
+*쿼리 시점 설정* 이라 컬렉션 상세 화면에서 *재인덱싱 없이* 바꿀 수 있습니다.
+
+== 프로바이더
+
+[cols="1,3"]
+|===
+| `none` | 재정렬 안 함(RRF 융합 순서 유지).
+| `llm` | 생성 LLM 에게 각 후보의 관련도를 물어 재정렬(추가 서버 불필요).
+| `local` | FastEmbed cross-encoder 를 백엔드 프로세스에 직접 로딩(서버 불필요).
+| `cross_encoder` | 외부 리랭커 서버(`/rerank`, TEI 호환) 호출.
+|===
+
+리랭킹은 임베딩과 달리 *호출이 드물고(질의당 top-N) 모델도 하나* 라, 인프로세스(`local`)로 돌려도
+백엔드 부담이 적습니다. 대규모·자원 격리가 필요하면 `cross_encoder`(독립 서버)를 씁니다.
+
+== 모델 선택
+
+`local`·`cross_encoder` 에서는 리랭커 모델을 고를 수 있습니다.
+
+* `local` — FastEmbed 지원 cross-encoder 목록에서 선택.
+* `cross_encoder` — 리랭커 서버의 `/v1/models` 목록에서 선택.
+
+한국어/다국어 문서는 다국어 리랭커(`jinaai/jina-reranker-v2-base-multilingual`)를 권장합니다.
+
+== 우선순위
+
+파이프라인을 지정하면 파이프라인 리랭크 설정이 우선하고, 아니면 컬렉션 기본 리랭커가 적용됩니다.
+컬렉션에 리랭커가 설정돼 있으면(none 아님) 기본 적용되며, 검색 요청의 rerank 플래그로도 켤 수 있습니다.
+
+관련: xref:servers/reranker-server.adoc[리랭커 서버].

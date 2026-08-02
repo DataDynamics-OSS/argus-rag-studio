@@ -1,0 +1,42 @@
+# Argus 리랭커 서버(GPU, torch 백엔드) — sentence-transformers CrossEncoder(torch) GPU 리랭크.
+#
+# torch cu128(aarch64 포함)이 CUDA 런타임을 휠에 포함하므로 CUDA 베이스 이미지는 불필요.
+# 호스트에 NVIDIA 드라이버 + nvidia-container-runtime 만 있으면 된다(`--gpus all` 로 실행).
+# aarch64 + Blackwell(sm_120/sm_121)에서 GPU 동작 — onnxruntime-gpu 가 aarch64 휠이 없어
+# FastEmbed GPU(Dockerfile.gpu)가 불가능한 DGX Spark(GB10) 류 호스트의 GPU 대안이다.
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /srv
+
+# 1) torch 를 CUDA(cu128) 인덱스에서 먼저 설치(Blackwell sm_120/sm_121 지원).
+#    sentence-transformers 가 이 torch 를 재사용한다(CPU torch 재설치 방지).
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu128
+
+# 2) 나머지 의존성
+COPY requirements-gpu-torch.txt ./
+RUN pip install --no-cache-dir -r requirements-gpu-torch.txt
+
+# 앱 코드 — 패키지로 임포트되도록 /srv/reranker_server 에 둔다
+COPY . ./reranker_server
+
+ENV ARGUS_RERANKER_SERVER_CONFIG_DIR=/srv/reranker_server/packaging/config \
+    RERANK_CACHE_DIR=/models \
+    RERANK_LOG_DIR=/var/log/argus-reranker-server \
+    RERANK_HOST=0.0.0.0 \
+    RERANK_PORT=8081 \
+    RERANK_BACKEND=sentence_transformers \
+    RERANK_DEVICE=cuda \
+    RERANK_PRELOAD=true \
+    HF_HOME=/models
+RUN mkdir -p /models /var/log/argus-reranker-server
+VOLUME ["/models"]
+
+EXPOSE 8081
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8081/health').status==200 else 1)"
+
+CMD ["python", "-m", "reranker_server"]

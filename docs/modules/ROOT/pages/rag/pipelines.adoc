@@ -1,0 +1,25 @@
+= 파이프라인 버전 관리
+
+파이프라인은 *검색 · 리랭크 · 생성* 설정을 하나로 묶은 *버전 가능한 1급 자산* 입니다. 컬렉션과
+독립적이며, 동일 질의에 여러 버전을 적용해 실험할 수 있습니다.
+
+== 설정
+
+[cols="1,3"]
+|===
+| retrieval | mode · top_k · vector_k · lexical_k · rrf_k · distance_metric(override, 비면 컬렉션 상속)
+| rerank | enabled · provider · top_n
+| generation | model · max_tokens · temperature
+|===
+
+== 버전 관리
+
+* *append-only 버전* — 설정 수정 시 새 버전이 추가되고 active 로 지정됨.
+* *롤백* — active_version 포인터를 이전 버전으로.
+* *diff* — 두 버전의 필드별 차이.
+* *비교(compare)* — 동일 질의를 두 버전 설정으로 검색해 결과를 나란히 비교.
+
+== 적용
+
+search/query/chat 요청에 `pipeline_id` 를 주면 해당 파이프라인 활성 버전 설정이 적용됩니다.
+거리 메트릭은 `distance_metric` override 가 있으면 우선하고, 없으면 컬렉션 메트릭을 사용합니다.

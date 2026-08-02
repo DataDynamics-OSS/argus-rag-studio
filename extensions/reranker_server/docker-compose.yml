@@ -1,0 +1,25 @@
+# Argus 리랭커 서버 — docker compose 배포
+# 사용: cd reranker_server && docker compose up -d --build
+services:
+  reranker-server:
+    build: .
+    image: argus-rag-studio-reranker-server:latest
+    container_name: argus-reranker-server
+    ports:
+      - "8081:8081"
+    environment:
+      # 인증 키 — 기본값 changeme. 운영에선 변경하고 RAG 의 rerank.api_key 도 동일하게.
+      RERANK_API_KEY: "changeme"
+      # 한국어/다국어는 jinaai/jina-reranker-v2-base-multilingual 권장(1.11GB)
+      RERANK_DEFAULT_MODEL: "Xenova/ms-marco-MiniLM-L-6-v2"
+      RERANK_PRELOAD: "true"
+      RERANK_CACHE_DIR: "/models"
+      RERANK_LOG_DIR: "/var/log/argus-reranker-server"
+    volumes:
+      - rerank-models:/models
+      - rerank-logs:/var/log/argus-reranker-server
+    restart: unless-stopped
+
+volumes:
+  rerank-models:
+  rerank-logs:

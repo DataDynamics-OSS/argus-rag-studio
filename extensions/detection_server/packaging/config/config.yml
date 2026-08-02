@@ -1,0 +1,33 @@
+app:
+  name: argus-detection-server
+
+server:
+  host: ${server.host:0.0.0.0}
+  port: ${server.port:8082}
+
+logging:
+  level: ${log.level:INFO}
+  dir: ${log.dir:/var/log/argus-detection-server}
+  filename: ${log.filename:argus-detection-server.log}
+  rolling:
+    type: daily
+    backup_count: ${log.backup_count:30}
+
+# 검출 — 텍스트 bbox 검출 설정
+detection:
+  # 인증 키(Authorization: Bearer). 빈값이면 무인증. RAG 의 detection 키와 동일해야 함
+  api_key: ${detect.api_key:changeme}
+  # 엔진: paddleocr(CPU 기본) | easyocr(torch GPU). aarch64+Blackwell GPU 는 easyocr 권장
+  engine: ${detect.engine:paddleocr}
+  # PaddleOCR 언어 코드(korean/en/ch/japan ...). 요청에서 override 가능
+  lang: ${detect.lang:korean}
+  # EasyOCR 언어(콤마목록). paddle 코드(korean 등)는 엔진이 자동 매핑
+  easyocr_langs: ${detect.easyocr_langs:ko,en}
+  # GPU 사용. paddleocr 는 paddlepaddle-gpu 필요(aarch64 미제공), easyocr 는 torch CUDA 사용
+  use_gpu: ${detect.use_gpu:false}
+  # 신뢰도 임계값(이 미만 박스 제외). 요청에서 override 가능
+  min_score: ${detect.min_score:0.5}
+  # 입력 이미지 최대 크기(MB)
+  max_image_mb: ${detect.max_image_mb:20}
+  # 시작 시 기본 언어 모델 미리 로딩
+  preload: ${detect.preload:false}

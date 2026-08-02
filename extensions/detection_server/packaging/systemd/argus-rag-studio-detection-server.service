@@ -1,0 +1,22 @@
+# Argus RAG Studio Detection Server — 패키지 설치용(install.sh 가 __INSTALL_DIR__ 치환)
+# 수동(systemd) 배포는 에이전트 탐색 대상이 아니다 — 설정 URL 프로브/heartbeat 로 관측
+# (deploy/detection-server-deployment.md 의 ARGUS_HEARTBEAT_URL 참조).
+[Unit]
+Description=Argus RAG Studio Detection Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__INSTALL_DIR__
+Environment=ARGUS_DETECTION_SERVER_CONFIG_DIR=__INSTALL_DIR__/config
+ExecStart=__INSTALL_DIR__/venv/bin/python -m detection_server
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=argus-rag-studio-detection-server
+
+[Install]
+WantedBy=multi-user.target

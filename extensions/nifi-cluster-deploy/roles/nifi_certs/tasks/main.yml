@@ -1,0 +1,129 @@
+---
+# =============================================================================
+# NiFi Toolkit(tls-toolkit standalone) 로 사설 CA + 노드/관리자 인증서 일괄 발급.
+#
+#   1) cert_authority_host 한 대에서만 toolkit 을 받아 전 노드 인증서를 생성
+#   2) 생성물(노드별 keystore/truststore, 관리자 클라이언트 번들)을 컨트롤러로 회수
+#   3) 각 NiFi 노드 conf 디렉터리로 자기 keystore/truststore 를 배치
+#
+# 멱등성: target 디렉터리가 이미 있으면 재생성하지 않는다(재발급은 강제 삭제 후).
+# =============================================================================
+
+# --- 1) cert_authority_host 에서만 생성 -------------------------------------
+- name: "[CA] 인증서 빌드 디렉터리 생성"
+  ansible.builtin.file:
+    path: "{{ cert_build_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: inventory_hostname == cert_authority_host
+
+- name: "[CA] NiFi Toolkit 설치 여부 확인"
+  ansible.builtin.stat:
+    path: "{{ nifi_toolkit_install_dir }}/bin/tls-toolkit.sh"
+  register: toolkit_stat
+  when: inventory_hostname == cert_authority_host
+
+- name: "[CA] NiFi Toolkit 다운로드"
+  ansible.builtin.get_url:
+    url: "{{ apache_mirror }}/nifi/{{ nifi_toolkit_version }}/nifi-toolkit-{{ nifi_toolkit_version }}-bin.zip"
+    dest: "/tmp/nifi-toolkit-{{ nifi_toolkit_version }}.zip"
+    mode: "0644"
+  when:
+    - inventory_hostname == cert_authority_host
+    - not toolkit_stat.stat.exists
+
+- name: "[CA] 툴킷 설치 상위 디렉터리 보장"
+  ansible.builtin.file:
+    path: "{{ nifi_toolkit_install_dir | dirname }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == cert_authority_host
+
+- name: "[CA] NiFi Toolkit 압축 해제"
+  ansible.builtin.unarchive:
+    src: "/tmp/nifi-toolkit-{{ nifi_toolkit_version }}.zip"
+    dest: "{{ nifi_toolkit_install_dir | dirname }}"
+    remote_src: true
+    creates: "{{ nifi_toolkit_install_dir }}"
+  when:
+    - inventory_hostname == cert_authority_host
+    - not toolkit_stat.stat.exists
+
+- name: "[CA] 생성 대상(target) 존재 확인"
+  ansible.builtin.stat:
+    path: "{{ cert_build_dir }}/target/nifi-cert.pem"
+  register: ca_generated
+  when: inventory_hostname == cert_authority_host
+
+# tls-toolkit standalone:
+#   -n  노드 호스트명 목록(각 노드 keystore/truststore 생성, 호스트명이 SAN/CN 으로 들어감)
+#   -C  클라이언트(관리자) 인증서 DN  -> PKCS12 번들 + 비밀번호 파일 생성
+#   -S/-K/-P  키스토어/키/트러스트스토어 비밀번호 고정(미지정 시 노드별 랜덤)
+#   -T  스토어 타입(JKS/PKCS12),  -O  기존 산출물 덮어쓰기
+#   -d  발급 인증서 유효기간(일) — CA/노드/관리자 모두 적용
+- name: "[CA] tls-toolkit 로 CA + 노드/관리자 인증서 생성"
+  ansible.builtin.command:
+    cmd: >-
+      {{ nifi_toolkit_install_dir }}/bin/tls-toolkit.sh standalone
+      -O
+      -o {{ cert_build_dir }}/target
+      -n '{{ groups['nifi_cluster'] | join(',') }}'
+      {% if tls_extra_sans | length > 0 %}--subjectAlternativeNames '{{ tls_extra_sans | join(',') }}'{% endif %}
+      -C 'CN={{ nifi_initial_admin_identity }}, OU={{ tls_org_unit }}'
+      -d {{ tls_cert_days }}
+      -K '{{ tls_keystore_password }}'
+      -S '{{ tls_keystore_password }}'
+      -P '{{ tls_truststore_password }}'
+      -T {{ tls_store_type | lower }}
+  args:
+    creates: "{{ cert_build_dir }}/target/nifi-cert.pem"
+  environment:
+    JAVA_HOME: "{{ detected_java_home }}"
+  when:
+    - inventory_hostname == cert_authority_host
+    - not ca_generated.stat.exists
+
+# --- 2) 생성물을 컨트롤러로 회수 --------------------------------------------
+- name: "[CTRL] 컨트롤러 로컬 회수 디렉터리 생성"
+  ansible.builtin.file:
+    path: "{{ cert_local_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+# 각 노드의 keystore/truststore + 관리자 클라이언트 번들 + CA 인증서 회수.
+- name: "[CA] 노드 keystore 회수"
+  ansible.builtin.fetch:
+    src: "{{ cert_build_dir }}/target/{{ item }}/keystore.{{ (tls_store_type == 'PKCS12') | ternary('p12','jks') }}"
+    dest: "{{ cert_local_dir }}/{{ item }}/"
+    flat: true
+  loop: "{{ groups['nifi_cluster'] }}"
+  when: inventory_hostname == cert_authority_host
+
+- name: "[CA] 노드 truststore 회수"
+  ansible.builtin.fetch:
+    src: "{{ cert_build_dir }}/target/{{ item }}/truststore.{{ (tls_store_type == 'PKCS12') | ternary('p12','jks') }}"
+    dest: "{{ cert_local_dir }}/{{ item }}/"
+    flat: true
+  loop: "{{ groups['nifi_cluster'] }}"
+  when: inventory_hostname == cert_authority_host
+
+- name: "[CA] 관리자 클라이언트 번들 + CA 인증서 회수"
+  ansible.builtin.fetch:
+    src: "{{ item }}"
+    dest: "{{ cert_local_dir }}/admin/"
+    flat: true
+  loop:
+    - "{{ cert_build_dir }}/target/CN={{ nifi_initial_admin_identity }}_OU={{ tls_org_unit }}.p12"
+    - "{{ cert_build_dir }}/target/CN={{ nifi_initial_admin_identity }}_OU={{ tls_org_unit }}.password"
+    - "{{ cert_build_dir }}/target/nifi-cert.pem"
+  when: inventory_hostname == cert_authority_host
+  failed_when: false   # toolkit 버전별 산출물 파일명 차이 흡수
+
+# 각 노드로의 keystore/truststore 배치는 nifi 롤에서 NiFi 설치(심볼릭 링크 생성)
+# 이후에 수행한다. 여기서 conf 디렉터리를 미리 만들면 {{ nifi_base_dir }} 가 실제
+# 디렉터리가 되어 이후 심볼릭 링크 생성과 충돌하기 때문이다.

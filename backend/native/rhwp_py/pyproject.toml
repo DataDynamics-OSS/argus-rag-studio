@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "rhwp-py"
+# RAG Studio 버전(backend/app/__init__.py __version__)과 함께 올린다 — Cargo.toml 도 동일.
+version = "0.1.2"
+description = "PyO3 binding to rhwp (MIT) for HWP/HWPX text & markdown extraction"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.maturin]
+module-name = "rhwp_py"

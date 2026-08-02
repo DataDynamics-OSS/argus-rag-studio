@@ -1,0 +1,111 @@
+= 설정 레퍼런스
+
+설정의 단일 소스는 `config.properties`(key=value) + `config.yml`(`${var:default}` 치환)입니다.
+설정 디렉터리는 `ARGUS_RAG_STUDIO_SERVER_CONFIG_DIR`(기본 `/etc/argus-rag-studio-server`,
+개발은 `backend/packaging/config`).
+
+일부 민감 키만 환경변수로 override 됩니다: `ARGUS_EMBEDDING_API_KEY`, `ARGUS_RERANK_API_KEY`,
+`ARGUS_LLM_API_KEY`, `ARGUS_INGESTION_TOKEN`.
+
+== 서버·로깅
+
+[source,properties]
+----
+server.host=0.0.0.0
+server.port=4700
+log.level=INFO
+log.dir=logs
+log.filename=argus-rag-studio-server.log
+----
+
+== 데이터베이스
+
+[source,properties]
+----
+db.type=postgresql
+db.host=localhost
+db.port=5432
+db.name=argus_rag_studio
+db.username=argus
+db.password=argus
+----
+
+== 임베딩
+
+[source,properties]
+----
+# 컬렉션 생성 기본값
+embedding.default_model=bge-m3
+embedding.default_dim=1024
+embedding.default_metric=cosine
+# 인제스천 임베딩 provider: openai_compatible | hash (컬렉션별로 local 도 가능)
+embedding.provider=openai_compatible
+embedding.server_url=http://localhost:8080/v1
+embedding.api_key=changeme        # = 임베딩 서버 EMBED_API_KEY. 무인증이면 빈값
+embedding.model=bge-m3
+embedding.batch_size=32
+----
+
+컬렉션별로 provider/model/dim/server_url/distance_metric/chunk 설정을 override 합니다(생성·상세 화면).
+
+[NOTE]
+====
+*인증 헤더 커스터마이즈* — 임베딩·LLM·리랭크 클라이언트는 기본적으로 `Authorization: Bearer <key>`
+를 보냅니다. 앞단 게이트웨이가 다른 헤더를 요구하면 서비스별로 바꿀 수 있습니다(예: vLLM 앞
+`X-API-Key` 게이트웨이):
+
+[source,properties]
+----
+embedding.auth_header=X-API-Key
+embedding.auth_scheme=          # 빈값 → 'X-API-Key: <key>' (스킴 prefix 없음)
+llm.auth_header=X-API-Key
+llm.auth_scheme=
+rerank.auth_header=X-API-Key
+rerank.auth_scheme=
+----
+
+`auth_scheme` 가 비어 있으면 키를 prefix 없이 그대로 보냅니다. 기본값은 `Authorization` / `Bearer`.
+====
+
+== 인제스천·검색
+
+[source,properties]
+----
+ingestion.chunk_size=1000
+ingestion.chunk_overlap=150
+ingestion.worker_enabled=true
+retrieval.top_k=5
+----
+
+== LLM(생성)
+
+[source,properties]
+----
+# openai_compatible: server_url 의 /chat/completions  |  anthropic: Claude(미지정 시 claude-opus-4-8)
+llm.provider=openai_compatible
+llm.server_url=http://localhost:8080/v1
+llm.model=
+llm.max_tokens=2048
+llm.temperature=0.2
+----
+
+== 리랭크
+
+[source,properties]
+----
+rerank.provider=none              # none | llm | cross_encoder
+rerank.server_url=http://localhost:8081/rerank
+rerank.api_key=changeme           # = 리랭커 서버 RERANK_API_KEY
+----
+
+== 오브젝트 스토리지
+
+[source,properties]
+----
+object_storage.endpoint=http://localhost:9000
+object_storage.access_key=minioadmin
+object_storage.secret_key=minioadmin
+object_storage.region=us-east-1
+object_storage.use_ssl=false
+object_storage.bucket=rag-documents
+----

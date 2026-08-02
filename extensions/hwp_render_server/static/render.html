@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>rhwp render</title></head>
+  <body>
+    <script type="module">
+      // @rhwp/core(WASM)로 HWP/HWPX 를 페이지별 SVG 로 렌더 → 텍스트 추출/PNG 래스터화.
+      // 헤드리스 브라우저(playwright)가 이 페이지를 띄우고 window.rhwpInfo / rhwpRender 를 호출한다.
+      import init, { HwpDocument } from "./rhwp.js"
+
+      // rhwp 텍스트 레이아웃용 폭 측정 콜백(프론트 hwp-to-images 와 동일).
+      {
+        let ctx = null, last = ""
+        globalThis.measureTextWidth = (font, text) => {
+          if (!ctx) ctx = document.createElement("canvas").getContext("2d")
+          if (font !== last) { ctx.font = font; last = font }
+          return ctx.measureText(text).width
+        }
+      }
+
+      let inited = null
+      function ensureInit() {
+        inited ??= init({ module_or_path: location.origin + "/rhwp_bg.wasm" })
+        return inited
+      }
+      function bytesFromB64(b64) {
+        return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+      }
+
+      async function rasterize(svg, scale) {
+        const root = new DOMParser().parseFromString(svg, "image/svg+xml").documentElement
+        let bw = 0, bh = 0
+        const vb = root.getAttribute("viewBox")
+        if (vb) { const p = vb.split(/[\s,]+/).map(Number); if (p.length === 4) { bw = p[2]; bh = p[3] } }
+        if (!bw || !bh) { bw = parseFloat(root.getAttribute("width")) || 794; bh = parseFloat(root.getAttribute("height")) || 1123 }
+        const w = Math.max(1, Math.round(bw * scale)), h = Math.max(1, Math.round(bh * scale))
+        root.setAttribute("width", w); root.setAttribute("height", h)
+        if (!vb) root.setAttribute("viewBox", `0 0 ${bw} ${bh}`)
+        const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(root))
+        const img = new Image(); img.width = w; img.height = h
+        await new Promise((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error("svg img load fail")); img.src = url })
+        if (img.decode) { try { await img.decode() } catch (e) {} }
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h
+        const c = cv.getContext("2d"); c.fillStyle = "#fff"; c.fillRect(0, 0, w, h); c.drawImage(img, 0, 0, w, h)
+        return { dataurl: cv.toDataURL("image/png"), width: w, height: h }
+      }
+
+      function svgText(svg) {
+        const doc = new DOMParser().parseFromString(svg, "image/svg+xml")
+        return Array.from(doc.querySelectorAll("text")).map((t) => t.textContent || "").join(" ").replace(/\s+/g, " ").trim()
+      }
+
+      // 페이지 수 + 페이지별 텍스트(매칭용). 래스터화 없이 가벼움.
+      window.rhwpInfo = async (b64) => {
+        await ensureInit()
+        const doc = new HwpDocument(bytesFromB64(b64))
+        const count = doc.pageCount()
+        const texts = []
+        for (let i = 0; i < count; i++) texts.push(svgText(doc.renderPageSvg(i)))
+        return { page_count: count, page_texts: texts }
+      }
+
+      // 특정 페이지(0-base)를 PNG dataURL 로 렌더.
+      window.rhwpRender = async (b64, page, scale) => {
+        await ensureInit()
+        const doc = new HwpDocument(bytesFromB64(b64))
+        const count = doc.pageCount()
+        const idx = Math.min(Math.max(0, page | 0), count - 1)
+        const r = await rasterize(doc.renderPageSvg(idx), scale || 1.5)
+        return { page: idx, page_count: count, ...r }
+      }
+
+      window.__ready = true
+    </script>
+  </body>
+</html>

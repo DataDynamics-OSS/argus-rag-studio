@@ -1,0 +1,4 @@
+---
+# 이 플레이북은 ansible.builtin 모듈만 사용하므로 외부 컬렉션 의존성은 없다.
+# (community.general 등을 추가로 쓰고 싶을 때를 위한 자리표시자)
+collections: []

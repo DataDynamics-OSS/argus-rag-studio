@@ -1,0 +1,31 @@
+# Argus RAG Studio — zot OCI 레지스트리 (에어갭 이미지 배포용)
+# 사용: cd extensions/zot-registry && docker compose up -d
+#
+# amd64 호스트: 기본 이미지 그대로.
+# arm64 호스트(DGX Spark 등): ZOT_IMAGE=ghcr.io/project-zot/zot-linux-arm64:latest 로 override.
+#   예) ZOT_IMAGE=ghcr.io/project-zot/zot-linux-arm64:v2.1.1 docker compose up -d
+#
+# 운영에선 ZOT_IMAGE 를 특정 버전으로 핀(아래 :latest 대신).
+services:
+  zot:
+    image: ${ZOT_IMAGE:-ghcr.io/project-zot/zot-linux-amd64:v2.1.1}
+    container_name: argus-zot
+    ports:
+      - "${ZOT_PORT:-5000}:5000"
+    volumes:
+      # 기본(무인증) 설정. 인증/동기화는 config.auth.json / config.sync.json 로 교체.
+      - ./config/${ZOT_CONFIG:-config.json}:/etc/zot/config.json:ro
+      - zot-data:/var/lib/registry
+      # TLS 사용 시 인증서를 마운트하고 config 의 http.tls 를 채운다.
+      # - ./certs:/etc/zot/certs:ro
+      # 인증(htpasswd) 사용 시:
+      # - ./config/htpasswd:/etc/zot/htpasswd:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "zot", "verify", "/etc/zot/config.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  zot-data:

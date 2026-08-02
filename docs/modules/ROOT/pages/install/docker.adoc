@@ -1,0 +1,40 @@
+= Docker Compose 배포
+
+개발 인프라(DB + 오브젝트 스토리지)와 추론 서버를 `deploy/docker-compose.infra.yml` 로 띄웁니다.
+
+== 인프라
+
+[source,bash]
+----
+docker compose -f deploy/docker-compose.infra.yml up -d
+----
+
+* `postgres` — pgvector/pgvector:pg16. 최초 기동 시 DDL 자동 적용(`argus-rag-studio-postgresql.sql`).
+* `minio` — 원본 문서 스토리지(:9000, 콘솔 :9001).
+
+== 추론 서버(프로필)
+
+[source,bash]
+----
+# 임베딩 + 리랭커 서버 함께
+docker compose -f deploy/docker-compose.infra.yml --profile inference up -d --build
+
+# 개별
+docker compose -f deploy/docker-compose.infra.yml --profile embedding-server up -d --build
+docker compose -f deploy/docker-compose.infra.yml --profile reranker-server up -d --build
+
+# (선택) 비전 LLM — vlm 파싱 전략용. GPU 필요. 코어 아님, opt-in.
+docker compose -f deploy/docker-compose.infra.yml --profile vision up -d
+----
+
+[cols="1,1,3"]
+|===
+| 서비스 | 포트 | 비고
+| `embedding-server` | 8080 | FastEmbed OpenAI 호환. HF TEI `embedding` 프로필과 8080 공유 → 둘 중 하나만
+| `reranker-server` | 8081 | FastEmbed cross-encoder TEI 호환
+| `vllm-vision` (선택) | 8000 | vLLM `Qwen/Qwen2-VL-7B-Instruct` (qwen2-vl-7b). *GPU 필요*. `vlm` 파싱 전용 — 생성 LLM 설정(`llm.*`) 재사용(BYO 예시)
+|===
+
+모델 캐시·로그는 볼륨에 유지됩니다. 추론 서버 인증 키 기본값은 `changeme`(운영 시 변경).
+`vllm-vision` 은 `inference` 에 포함되지 않는 *opt-in* 프로필입니다(GPU 의존) — 멀티모달 LLM 이
+이미 있으면 띄울 필요 없이 `llm.server_url`/`llm.model` 만 그 엔드포인트로 두면 됩니다.

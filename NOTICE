@@ -1,0 +1,27 @@
+Argus RAG Studio
+Copyright 2026 Data Dynamics Inc.
+
+This product is developed, sponsored, and maintained by Data Dynamics Inc.
+(https://www.data-dynamics.io/).
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this product except in compliance with the License.
+A copy of the License is included in the LICENSE file, and is also available at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
+Third-party components
+
+This product bundles or depends on third-party components distributed under
+their own licenses. Notable items:
+
+* rhwp (HWP/HWPX parser, MIT License) — https://github.com/edwardkim/rhwp
+  Used through the `rhwp_py` PyO3 binding (backend/native/rhwp_py) and the
+  `@rhwp/core` WASM package (frontend, extensions/hwp_render_server).
+  HWP/HWPX test samples under `samples/hwp/` originate from that repository.
+
+* PyMuPDF (AGPL-3.0 or commercial) — optional, not bundled.
+  Imported lazily by the `vlm` parsing strategy and image tooling. It is not a
+  required dependency and is not distributed with this product; installing it
+  subjects that component to its own license terms. See docs for alternatives.

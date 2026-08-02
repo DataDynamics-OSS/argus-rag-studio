@@ -1,0 +1,29 @@
+# Argus 검출 서버(GPU) — EasyOCR(torch) 배포
+# 사용: cd detection_server && docker compose -f docker-compose.gpu.yml up -d --build
+# 요구: 호스트 NVIDIA 드라이버 + nvidia-container-runtime (DGX/일반 CUDA GPU)
+services:
+  detection-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: argus-rag-studio-detection-server:latest-gpu
+    container_name: argus-detection-server
+    ports:
+      - "8082:8082"
+    environment:
+      DETECT_API_KEY: "changeme"
+      DETECT_ENGINE: "easyocr"       # torch GPU 엔진
+      DETECT_USE_GPU: "true"
+      DETECT_EASYOCR_LANGS: "ko,en"  # 한국어+영문
+      DETECT_MIN_SCORE: "0.5"
+      DETECT_PRELOAD: "true"         # 시작 시 Reader 미리 로딩
+      DETECT_LOG_DIR: "/var/log/argus-detection-server"
+    gpus: all                        # 모든 GPU 노출(docker compose v2.30+). 구버전은 deploy.resources 사용
+    volumes:
+      - detect-models:/models                          # EasyOCR/torch 모델 캐시 유지
+      - detect-logs:/var/log/argus-detection-server
+    restart: unless-stopped
+
+volumes:
+  detect-models:
+  detect-logs:

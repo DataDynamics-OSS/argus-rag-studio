@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Apache NiFi ({{ nifi_version }}) — 보안 클러스터 노드
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User={{ service_user }}
+Group={{ service_group }}
+Environment=JAVA_HOME={{ detected_java_home }}
+Environment=NIFI_HOME={{ nifi_base_dir }}
+LimitNOFILE=50000
+LimitNPROC=10000
+ExecStart={{ nifi_base_dir }}/bin/nifi.sh start
+ExecStop={{ nifi_base_dir }}/bin/nifi.sh stop
+ExecReload={{ nifi_base_dir }}/bin/nifi.sh restart
+Restart=on-failure
+RestartSec=20
+# NiFi 기동(JVM+플로우 로드)은 수 분이 걸릴 수 있음
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

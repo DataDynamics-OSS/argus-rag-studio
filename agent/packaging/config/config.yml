@@ -1,0 +1,55 @@
+# Argus RAG Studio Agent Configuration
+# Variables use Spring Boot style: ${variable:default_value}
+# Values are resolved from config.properties. If not found, the default value is used.
+
+app:
+  name: argus-rag-studio-agent
+  version: 0.1.0
+  debug: false
+
+server:
+  host: ${server.host:0.0.0.0}
+  port: ${server.port:4700}
+
+logging:
+  level: ${log.level:INFO}
+  dir: ${log.dir:/var/log/argus-rag-studio-agent}
+  filename: ${log.filename:agent.log}
+  rolling:
+    type: ${log.rolling.type:daily}
+    backup_count: ${log.rolling.backup_count:30}
+
+data:
+  dir: ${data.dir:/var/lib/argus-rag-studio-agent}
+
+backup:
+  dir: ${backup.dir:/opt/argus-rag-studio/agent/backups}
+
+command:
+  timeout: ${command.timeout:300}
+  max_output: ${command.max_output:1048576}
+
+monitor:
+  interval: ${monitor.interval:5}
+
+terminal:
+  shell: ${terminal.shell:/bin/bash}
+  max_sessions: ${terminal.max_sessions:10}
+
+certificate:
+  dir: ${cert.dir:/opt/argus-rag-studio-agent/certificates}
+  days: ${cert.days:825}
+  key_bits: ${cert.key_bits:2048}
+
+heartbeat:
+  interval: ${heartbeat.interval:60}
+
+filemgr:
+  exec_timeout: ${filemgr.exec_timeout:60}
+
+prometheus:
+  enable-push: ${prometheus.enable-push:true}
+  push-cron: ${prometheus.push-cron:* * * * *}
+  pushgateway:
+    host: ${prometheus.pushgateway.host:localhost}
+    port: ${prometheus.pushgateway.port:9091}

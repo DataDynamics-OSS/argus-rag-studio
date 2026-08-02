@@ -1,0 +1,38 @@
+# Argus 검출 서버(GPU) — EasyOCR(torch) 텍스트 bbox 검출 서비스
+# torch cu128(aarch64 포함)이 GPU CUDA 런타임을 휠에 포함하므로 CUDA 베이스 이미지는 불필요.
+# 호스트에 NVIDIA 드라이버 + nvidia-container-runtime 만 있으면 된다(`--gpus all` 로 실행).
+FROM python:3.11-slim
+
+# OpenCV/EasyOCR 런타임 의존(libgl, glib, libgomp)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /srv
+
+# 1) torch/torchvision 을 CUDA(cu128) 인덱스에서 먼저 설치(Blackwell sm_120/sm_121 지원)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu128
+
+# 2) 나머지 의존성(easyocr 는 이미 설치된 torch 를 재사용)
+COPY requirements-gpu.txt ./
+RUN pip install --no-cache-dir -r requirements-gpu.txt
+
+# 앱 코드 — 패키지로 임포트되도록 /srv/detection_server 에 둔다
+COPY . ./detection_server
+
+# 설정 디렉터리 + 모델 캐시/로그. EasyOCR 모델은 $HOME/.EasyOCR 에 캐시된다.
+ENV ARGUS_DETECTION_SERVER_CONFIG_DIR=/srv/detection_server/packaging/config \
+    DETECT_LOG_DIR=/var/log/argus-detection-server \
+    DETECT_HOST=0.0.0.0 \
+    DETECT_PORT=8082 \
+    DETECT_ENGINE=easyocr \
+    DETECT_USE_GPU=true \
+    HOME=/models
+RUN mkdir -p /models /var/log/argus-detection-server
+VOLUME ["/models"]
+
+EXPOSE 8082
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8082/health').status==200 else 1)"
+
+CMD ["python", "-m", "detection_server"]

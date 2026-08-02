@@ -1,0 +1,8 @@
+# Argus 임베딩 모델 파인튜닝 트레이너 — 독립 실행 의존성
+# 검증(validate)만 할 때는 표준 라이브러리만으로 충분하며, 아래는 학습(train)용이다.
+sentence-transformers>=3.0
+torch>=2.2
+numpy>=1.26
+# 개발(테스트/린트)
+pytest>=8.0
+ruff>=0.5

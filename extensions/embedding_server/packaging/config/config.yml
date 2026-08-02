@@ -1,0 +1,31 @@
+app:
+  name: argus-embedding-server
+
+server:
+  host: ${server.host:0.0.0.0}
+  port: ${server.port:8080}
+
+logging:
+  level: ${log.level:INFO}
+  dir: ${log.dir:/var/log/argus-embedding-server}
+  filename: ${log.filename:argus-embedding-server.log}
+  rolling:
+    type: daily
+    backup_count: ${log.backup_count:30}
+
+# 임베딩 — FastEmbed(ONNX) 모델 서빙 설정
+embedding:
+  # 인증 키(Authorization: Bearer). 빈값이면 무인증. RAG 의 임베딩 키와 동일해야 함
+  api_key: ${embed.api_key:changeme}
+  # model 미지정 요청 시 사용할 기본 모델
+  default_model: ${embed.default_model:mixedbread-ai/mxbai-embed-large-v1}
+  # 노출 모델 차원 필터(빈값=전체). RAG vector(1024) 에 맞추려면 1024
+  dim: ${embed.dim:1024}
+  # 노출 모델 화이트리스트(콤마구분). 설정 시 dim 보다 우선
+  models: ${embed.models:}
+  # 모델 캐시 디렉터리(도커 볼륨용). 빈값이면 FastEmbed 기본 경로
+  cache_dir: ${embed.cache_dir:}
+  # 시작 시 기본 모델 미리 로딩
+  preload: ${embed.preload:false}
+  # 단일 요청 최대 입력 수
+  max_batch: ${embed.max_batch:256}

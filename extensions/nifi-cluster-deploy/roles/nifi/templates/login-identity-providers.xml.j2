@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- {{ ansible_managed }} -->
+<!--
+  로그인 인증 제공자.
+    - single-user: 사용자명/비밀번호 1쌍. 실제 비밀번호(bcrypt)는
+      `nifi.sh set-single-user-credentials` 가 이 파일에 주입한다(아래 빈 값 자리).
+    - ldap: 기업 LDAP/AD 바인드 인증.
+-->
+<loginIdentityProviders>
+{% if nifi_auth_method == 'ldap' %}
+    <provider>
+        <identifier>ldap-provider</identifier>
+        <class>org.apache.nifi.ldap.LdapProvider</class>
+        <property name="Authentication Strategy">LDAPS</property>
+
+        <property name="Manager DN">{{ nifi_ldap_manager_dn }}</property>
+        <property name="Manager Password">{{ nifi_ldap_manager_password }}</property>
+
+        <property name="Referral Strategy">FOLLOW</property>
+        <property name="Connect Timeout">10 secs</property>
+        <property name="Read Timeout">10 secs</property>
+
+        <property name="Url">{{ nifi_ldap_url }}</property>
+        <property name="User Search Base">{{ nifi_ldap_user_search_base }}</property>
+        <property name="User Search Filter">{{ nifi_ldap_user_search_filter }}</property>
+
+        <property name="Identity Strategy">{{ nifi_ldap_identity_strategy }}</property>
+        <property name="Authentication Expiration">12 hours</property>
+
+        <!-- LDAPS 검증에 NiFi 트러스트스토어(사내 CA 포함) 사용 -->
+        <property name="TLS - Keystore">{{ nifi_conf_dir }}/{{ nifi_keystore_file }}</property>
+        <property name="TLS - Keystore Password">{{ tls_keystore_password }}</property>
+        <property name="TLS - Keystore Type">{{ nifi_keystore_type }}</property>
+        <property name="TLS - Truststore">{{ nifi_conf_dir }}/{{ nifi_truststore_file }}</property>
+        <property name="TLS - Truststore Password">{{ tls_truststore_password }}</property>
+        <property name="TLS - Truststore Type">{{ nifi_truststore_type }}</property>
+        <property name="TLS - Client Auth">NONE</property>
+        <property name="TLS - Protocol">{{ nifi_ldap_tls_protocol }}</property>
+        <property name="TLS - Shutdown Gracefully">true</property>
+    </provider>
+{% else %}
+    <provider>
+        <identifier>single-user-provider</identifier>
+        <class>org.apache.nifi.authentication.single.user.SingleUserLoginIdentityProvider</class>
+        <!-- Username/Password 는 set-single-user-credentials 가 채운다. -->
+        <property name="Username"></property>
+        <property name="Password"></property>
+    </provider>
+{% endif %}
+</loginIdentityProviders>

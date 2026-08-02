@@ -1,0 +1,29 @@
+app:
+  name: argus-reranker-server
+
+server:
+  host: ${server.host:0.0.0.0}
+  port: ${server.port:8081}
+
+logging:
+  level: ${log.level:INFO}
+  dir: ${log.dir:/var/log/argus-reranker-server}
+  filename: ${log.filename:argus-reranker-server.log}
+  rolling:
+    type: daily
+    backup_count: ${log.backup_count:30}
+
+# 리랭킹 — FastEmbed cross-encoder 모델 서빙 설정
+rerank:
+  # 인증 키(Authorization: Bearer). 빈값이면 무인증. RAG 의 rerank.api_key 와 동일해야 함
+  api_key: ${rerank.api_key:changeme}
+  # model 미지정 요청 시 사용할 기본 모델. 한국어/다국어는 jinaai/jina-reranker-v2-base-multilingual 권장
+  default_model: ${rerank.default_model:Xenova/ms-marco-MiniLM-L-6-v2}
+  # 노출 모델 화이트리스트(콤마구분). 비면 FastEmbed 전체 cross-encoder
+  models: ${rerank.models:}
+  # 모델 캐시 디렉터리(도커 볼륨용). 빈값이면 FastEmbed 기본 경로
+  cache_dir: ${rerank.cache_dir:}
+  # 시작 시 기본 모델 미리 로딩
+  preload: ${rerank.preload:false}
+  # 단일 요청 최대 입력(texts) 수
+  max_batch: ${rerank.max_batch:256}

@@ -1,0 +1,21 @@
+# Argus RAG Studio Server(API) — 패키지 설치용(install.sh 가 __INSTALL_DIR__ 치환)
+[Unit]
+Description=Argus RAG Studio Server (API)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=ARGUS_RAG_STUDIO_SERVER_CONFIG_DIR=__INSTALL_DIR__/config
+# 인제스천은 별도 워커 유닛으로 — API 프로세스에서 비활성
+Environment=ARGUS_INGESTION_WORKER_ENABLED=false
+ExecStart=__INSTALL_DIR__/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 4700
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=argus-rag-studio-server
+
+[Install]
+WantedBy=multi-user.target

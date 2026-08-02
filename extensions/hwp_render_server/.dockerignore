@@ -1,0 +1,6 @@
+node_modules/
+# scripts/copy-rhwp.js 가 빌드 시 생성하는 자산(컨텍스트에서 제외)
+static/rhwp.js
+static/rhwp_bg.wasm
+.git
+*.log

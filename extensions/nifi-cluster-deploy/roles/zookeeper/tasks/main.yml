@@ -1,0 +1,86 @@
+---
+# ZooKeeper 앙상블 설치 및 구성
+
+- name: ZooKeeper 디렉터리 생성
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0755"
+  loop:
+    - "{{ zk_data_dir }}"
+    - "{{ zk_log_dir }}"
+
+- name: ZooKeeper 설치 여부 확인
+  ansible.builtin.stat:
+    path: "{{ zk_install_dir }}/bin/zkServer.sh"
+  register: zk_installed
+
+- name: ZooKeeper 다운로드
+  ansible.builtin.get_url:
+    url: "{{ apache_mirror }}/zookeeper/zookeeper-{{ zookeeper_version }}/apache-zookeeper-{{ zookeeper_version }}-bin.tar.gz"
+    dest: "/tmp/zookeeper-{{ zookeeper_version }}.tar.gz"
+    mode: "0644"
+  when: not zk_installed.stat.exists
+
+- name: ZooKeeper 압축 해제
+  ansible.builtin.unarchive:
+    src: "/tmp/zookeeper-{{ zookeeper_version }}.tar.gz"
+    dest: /opt
+    remote_src: true
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    creates: "{{ zk_install_dir }}"
+  when: not zk_installed.stat.exists
+
+- name: 압축 해제 디렉터리명 정규화
+  ansible.builtin.command: mv "/opt/apache-zookeeper-{{ zookeeper_version }}-bin" "{{ zk_install_dir }}"
+  args:
+    creates: "{{ zk_install_dir }}"
+  when: not zk_installed.stat.exists
+
+- name: ZooKeeper 심볼릭 링크
+  ansible.builtin.file:
+    src: "{{ zk_install_dir }}"
+    dest: "{{ zk_base_dir }}"
+    state: link
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+
+- name: zoo.cfg 작성
+  ansible.builtin.template:
+    src: zoo.cfg.j2
+    dest: "{{ zk_base_dir }}/conf/zoo.cfg"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0644"
+  notify: restart zookeeper
+
+# myid: 각 노드 고유. 인벤토리의 host 변수 zk_id 사용.
+- name: myid 작성
+  ansible.builtin.copy:
+    dest: "{{ zk_data_dir }}/myid"
+    content: "{{ zk_id }}\n"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0644"
+  notify: restart zookeeper
+
+- name: zookeeper systemd 유닛 작성
+  ansible.builtin.template:
+    src: zookeeper.service.j2
+    dest: /etc/systemd/system/zookeeper.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart zookeeper
+
+- name: zookeeper 서비스 기동/활성화
+  ansible.builtin.systemd:
+    name: zookeeper
+    state: started
+    enabled: true
+    daemon_reload: true

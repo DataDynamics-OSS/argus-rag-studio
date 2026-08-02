@@ -1,0 +1,14 @@
+= 설정
+
+설정 화면에서 런타임 설정(임베딩·LLM·리랭크·오브젝트 스토리지 등)을 확인·일부 조정합니다.
+설정의 단일 소스는 `config.yml` + `config.properties` 이며, 일부 항목은 DB 에 저장돼 런타임 override 됩니다.
+
+== 우선순위
+
+. 환경변수(예: `ARGUS_EMBEDDING_API_KEY`)
+. `config.properties` 변수 → `config.yml` 의 `${var:default}` 치환
+. 코드 기본값
+
+설정 디렉터리는 `ARGUS_RAG_STUDIO_SERVER_CONFIG_DIR` (개발은 `backend/packaging/config`).
+
+자세한 키 목록은 xref:../install/config.adoc[설정 레퍼런스] 참조.

@@ -1,0 +1,45 @@
+---
+# =============================================================================
+# Argus — Apache NiFi 보안 클러스터 배포
+#
+#   - TLS 적용(NiFi Toolkit 기반 사설 CA + 노드/관리자 인증서)
+#   - 로그인 인증(Single-User 또는 LDAP)
+#   - 외부 ZooKeeper 앙상블로 클러스터 코디네이션
+#
+# 실행:
+#   ansible-playbook site.yml
+#   ansible-playbook site.yml --tags certs        # 인증서만
+#   ansible-playbook site.yml --tags nifi -l nifi  # NiFi만
+# =============================================================================
+
+# 1) 공통 준비(OS 패키지·사용자·JVM) — 모든 호스트
+- name: 공통 준비 및 JVM 설치
+  hosts: nifi_cluster:zookeeper
+  gather_facts: true
+  roles:
+    - role: common
+      tags: [common]
+    - role: java
+      tags: [java]
+
+# 2) ZooKeeper 앙상블
+- name: ZooKeeper 앙상블 구성
+  hosts: zookeeper
+  gather_facts: true
+  roles:
+    - role: zookeeper
+      tags: [zookeeper]
+
+# 3) NiFi 설치 — 사설 CA/노드 인증서(TLS) 발급 후 보안 클러스터 구성
+#    cert 빌더 호스트(기본: 첫 NiFi 노드)에서 전 노드 인증서를 일괄 생성하고
+#    컨트롤러를 거쳐 각 노드로 분배한 뒤 NiFi 를 설치/기동한다.
+#    노드를 순차(serial:1) 처리해 인증서 분배 → 플로우 선출을 안정화한다.
+- name: NiFi 보안 클러스터 설치
+  hosts: nifi_cluster
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: nifi_certs
+      tags: [certs]
+    - role: nifi
+      tags: [nifi]

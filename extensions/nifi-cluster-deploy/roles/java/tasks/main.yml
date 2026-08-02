@@ -1,0 +1,38 @@
+---
+# JVM 설치 — NiFi/ZooKeeper 공통 의존성
+
+- name: 자바 설치(Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: "{{ java_package_debian }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: 자바 설치(RHEL/CentOS/Rocky)
+  ansible.builtin.dnf:
+    name: "{{ java_package_redhat }}"
+    state: present
+  when: ansible_os_family == "RedHat"
+
+# JAVA_HOME 자동 탐지: 명시값이 없으면 java 실행 파일에서 역추적.
+- name: java 실행 경로 확인
+  ansible.builtin.command: readlink -f "{{ (java_home == '') | ternary('/usr/bin/java', java_home + '/bin/java') }}"
+  register: java_real_path
+  changed_when: false
+
+- name: JAVA_HOME 사실(fact) 설정
+  ansible.builtin.set_fact:
+    detected_java_home: >-
+      {{ java_home if java_home != ''
+         else (java_real_path.stdout | regex_replace('/bin/java$', '')) }}
+
+- name: JAVA_HOME 프로파일 등록
+  ansible.builtin.copy:
+    dest: /etc/profile.d/java.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      export JAVA_HOME={{ detected_java_home }}
+      export PATH=$JAVA_HOME/bin:$PATH

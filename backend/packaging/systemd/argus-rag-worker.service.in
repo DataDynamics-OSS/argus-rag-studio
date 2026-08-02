@@ -1,0 +1,23 @@
+# Argus RAG Studio 인제스천 워커 — install.sh 가 --workers N 만큼 렌더
+# (__INSTALL_DIR__/__N__ 치환 → argus-rag-worker-<N>.service).
+# 유닛 이름 규약(argus-rag-worker-<N>)은 에이전트의 systemd 탐색과 정합해야 한다.
+[Unit]
+Description=Argus RAG Studio Ingestion Worker __N__
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=ARGUS_RAG_STUDIO_SERVER_CONFIG_DIR=__INSTALL_DIR__/config
+# 배포 방식 자기 보고 — 잡 모니터링/서비스 관리에 SYSTEMD 로 표시
+Environment=ARGUS_WORKER_RUNTIME=systemd
+ExecStart=__INSTALL_DIR__/venv/bin/python -m app.worker_main
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=argus-rag-worker-__N__
+
+[Install]
+WantedBy=multi-user.target

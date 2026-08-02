@@ -1,0 +1,13 @@
+# 컨트롤러로 회수한 인증서/키스토어(절대 커밋 금지)
+.generated-certs/
+*.jks
+*.p12
+*.pem
+*.password
+
+# vault 평문
+vault-pass.txt
+*.vault.yml.plain
+
+# ansible 부산물
+*.retry

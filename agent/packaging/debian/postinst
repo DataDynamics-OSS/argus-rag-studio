@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+#DEBHELPER#
+
+if [ "$1" = "configure" ]; then
+    # Create certificate directories
+    mkdir -p /opt/argus-rag-studio-agent/certificates/ca
+
+    systemctl daemon-reload
+    systemctl enable argus-rag-studio-agent.service
+fi

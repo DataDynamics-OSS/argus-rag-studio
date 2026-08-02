@@ -1,0 +1,220 @@
+---
+# =============================================================================
+# Apache NiFi 설치 + 보안 클러스터 구성
+# =============================================================================
+
+- name: 데이터/로그 디렉터리 생성
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0750"
+  loop:
+    - "{{ nifi_data_dir }}"
+    - "{{ nifi_log_dir }}"
+    - "{{ nifi_data_dir }}/database_repository"
+    - "{{ nifi_data_dir }}/flowfile_repository"
+    - "{{ nifi_data_dir }}/content_repository"
+    - "{{ nifi_data_dir }}/provenance_repository"
+    - "{{ nifi_data_dir }}/state/local"
+
+- name: NiFi 설치 여부 확인
+  ansible.builtin.stat:
+    path: "{{ nifi_install_dir }}/bin/nifi.sh"
+  register: nifi_installed
+
+- name: NiFi 다운로드
+  ansible.builtin.get_url:
+    url: "{{ apache_mirror }}/nifi/{{ nifi_version }}/nifi-{{ nifi_version }}-bin.zip"
+    dest: "/tmp/nifi-{{ nifi_version }}.zip"
+    mode: "0644"
+  when: not nifi_installed.stat.exists
+
+- name: 설치 상위 디렉터리 보장
+  ansible.builtin.file:
+    path: "{{ nifi_install_dir | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: NiFi 압축 해제
+  ansible.builtin.unarchive:
+    src: "/tmp/nifi-{{ nifi_version }}.zip"
+    dest: "{{ nifi_install_dir | dirname }}"
+    remote_src: true
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    creates: "{{ nifi_install_dir }}"
+  when: not nifi_installed.stat.exists
+
+- name: NiFi 심볼릭 링크
+  ansible.builtin.file:
+    src: "{{ nifi_install_dir }}"
+    dest: "{{ nifi_base_dir }}"
+    state: link
+
+- name: 설치 디렉터리 소유권 보정
+  ansible.builtin.file:
+    path: "{{ nifi_install_dir }}"
+    state: directory
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    recurse: true
+
+# --- TLS 인증서 배치(심볼릭 링크 생성 이후) ---------------------------------
+# nifi_certs 롤이 컨트롤러({{ cert_local_dir }})로 회수해 둔 이 노드의
+# keystore/truststore 를 conf 로 복사한다. nifi_conf_dir 는 심볼릭 링크를 통해
+# 실제 버전 디렉터리(conf)로 해소된다.
+- name: 노드 keystore 배치
+  ansible.builtin.copy:
+    src: "{{ cert_local_dir }}/{{ inventory_hostname }}/{{ nifi_keystore_file }}"
+    dest: "{{ nifi_conf_dir }}/{{ nifi_keystore_file }}"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0640"
+  notify: restart nifi
+
+- name: 노드 truststore 배치
+  ansible.builtin.copy:
+    src: "{{ cert_local_dir }}/{{ inventory_hostname }}/{{ nifi_truststore_file }}"
+    dest: "{{ nifi_conf_dir }}/{{ nifi_truststore_file }}"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0640"
+  notify: restart nifi
+
+# --- 구성 파일 템플릿 --------------------------------------------------------
+- name: nifi.properties 작성
+  ansible.builtin.template:
+    src: nifi.properties.j2
+    dest: "{{ nifi_conf_dir }}/nifi.properties"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0640"
+  notify: restart nifi
+
+- name: state-management.xml 작성(외부 ZooKeeper)
+  ansible.builtin.template:
+    src: state-management.xml.j2
+    dest: "{{ nifi_conf_dir }}/state-management.xml"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0640"
+  notify: restart nifi
+
+- name: authorizers.xml 작성(최초 관리자 + 노드 신원)
+  ansible.builtin.template:
+    src: authorizers.xml.j2
+    dest: "{{ nifi_conf_dir }}/authorizers.xml"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0640"
+  notify: restart nifi
+
+# single-user 자격증명은 set-single-user-credentials 가 이 파일에 bcrypt 로
+# 주입하므로, 매 실행마다 빈 자격증명으로 덮어쓰지 않도록 "최초 1회"만 템플릿한다.
+# (마커 부재 = 최초). LDAP 은 주입이 없으므로 항상 템플릿한다.
+- name: single-user 자격증명 마커 확인
+  ansible.builtin.stat:
+    path: "{{ nifi_conf_dir }}/.single-user-applied"
+  register: su_marker
+
+- name: login-identity-providers.xml 작성
+  ansible.builtin.template:
+    src: login-identity-providers.xml.j2
+    dest: "{{ nifi_conf_dir }}/login-identity-providers.xml"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0640"
+  when: >-
+    nifi_auth_method == 'ldap'
+    or not (su_marker.stat.exists | default(false))
+  notify: restart nifi
+
+# bootstrap.conf 는 NiFi 2.x 가 요구하는 Java 모듈 옵션(--add-opens 등)을 포함하므로
+# 전체를 덮어쓰지 않고 java 실행 경로 / 힙 설정 라인만 보정한다.
+- name: bootstrap.conf — java 실행 경로 설정
+  ansible.builtin.lineinfile:
+    path: "{{ nifi_conf_dir }}/bootstrap.conf"
+    regexp: '^#?\s*java=.*$'
+    line: "java={{ detected_java_home }}/bin/java"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+  notify: restart nifi
+
+- name: bootstrap.conf — JVM 힙(Xms/Xmx) 설정
+  ansible.builtin.lineinfile:
+    path: "{{ nifi_conf_dir }}/bootstrap.conf"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+  loop:
+    - { regexp: '^java\.arg\.2=-Xms', line: "java.arg.2=-Xms{{ nifi_jvm_heap_min }}" }
+    - { regexp: '^java\.arg\.3=-Xmx', line: "java.arg.3=-Xmx{{ nifi_jvm_heap_max }}" }
+  notify: restart nifi
+
+# --- single-user 자격증명 주입(최초 1회) ------------------------------------
+# nifi.sh set-single-user-credentials 는 login-identity-providers.xml 의
+# Username/Password(bcrypt) 를 오프라인으로 주입한다. bcrypt salt 가 매번 달라
+# 멱등하지 않으므로 마커 파일로 최초 1회만 수행한다.
+# (비밀번호 교체 시: conf/.single-user-applied 와 login-identity-providers.xml
+#  을 삭제한 뒤 플레이북을 재실행)
+- name: single-user 자격증명 설정
+  ansible.builtin.command:
+    cmd: >-
+      {{ nifi_base_dir }}/bin/nifi.sh set-single-user-credentials
+      '{{ nifi_single_user_username }}' '{{ nifi_single_user_password }}'
+  environment:
+    JAVA_HOME: "{{ detected_java_home }}"
+  become_user: "{{ service_user }}"
+  changed_when: true
+  when:
+    - nifi_auth_method == "single-user"
+    - not (su_marker.stat.exists | default(false))
+  notify: restart nifi
+
+- name: single-user 마커 기록
+  ansible.builtin.copy:
+    dest: "{{ nifi_conf_dir }}/.single-user-applied"
+    content: "{{ nifi_single_user_username }} 자격증명 적용됨\n"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: "0600"
+  when:
+    - nifi_auth_method == "single-user"
+    - not (su_marker.stat.exists | default(false))
+
+# --- systemd ----------------------------------------------------------------
+- name: nifi systemd 유닛 작성
+  ansible.builtin.template:
+    src: nifi.service.j2
+    dest: /etc/systemd/system/nifi.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart nifi
+
+- name: nifi 서비스 기동/활성화
+  ansible.builtin.systemd:
+    name: nifi
+    state: started
+    enabled: true
+    daemon_reload: true
+
+# 변경된 구성 즉시 반영(노드 순차 처리: serial=1)
+- name: 변경 핸들러 즉시 실행
+  ansible.builtin.meta: flush_handlers
+
+- name: HTTPS UI 응답 대기
+  ansible.builtin.uri:
+    url: "https://{{ inventory_hostname }}:{{ nifi_web_https_port }}/nifi/"
+    validate_certs: false
+    status_code: [200, 401, 403]
+  register: nifi_up
+  retries: 30
+  delay: 10
+  until: nifi_up.status is defined and nifi_up.status in [200, 401, 403]
+  failed_when: false
